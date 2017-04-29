@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <unistd.h>
 #include <libutil.h>
 #include <strings.h>
@@ -37,6 +38,11 @@ logd_app_open_pidfile(struct logd_app *la)
 
 	la->pid_fh = pidfile_open(la->pidfile_path, 0600, &la->pid);
 	if (la->pid_fh == NULL) {
+
+		/* XXX this should be returned to the caller */
+		if (errno == EEXIST)
+			errx(1, "logd already running, pid %d\n", la->pid);
+
 		warn("%s: pidfile_open", __func__);
 		return (-1);
 	}
@@ -74,6 +80,17 @@ logd_app_close_pidfile(struct logd_app *la)
 	return (0);
 }
 
+int
+logd_app_remove_pidfile(struct logd_app *la)
+{
+
+	if (la->pid_fh == NULL)
+		return (0);
+
+	pidfile_remove(la->pid_fh);
+
+	return (0);
+}
 int
 logd_app_set_background(struct logd_app *la, int do_background)
 {

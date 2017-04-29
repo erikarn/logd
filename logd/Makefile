@@ -1,5 +1,5 @@
 PROG=	logd
-SRCS=	logd_app.c main.c
+SRCS=	logd_app.c main.c wait.c
 
 LDADD=	-lutil
 
