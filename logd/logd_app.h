@@ -2,6 +2,7 @@
 #define	__LOGD_APP_H__
 
 struct logd_app {
+	struct event_base *eb;
 
 	/* daemon settings */
 	int do_background;

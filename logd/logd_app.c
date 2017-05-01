@@ -7,6 +7,9 @@
 #include <string.h>
 #include <err.h>
 
+#include <event/event.h>
+#include <event/evsignal.h>
+
 #include "config.h"
 
 #include "logd_app.h"
@@ -14,7 +17,6 @@
 void
 logd_app_init(struct logd_app *la)
 {
-
 	bzero(la, sizeof(*la));
 
 	/* pidfile init */
@@ -22,6 +24,9 @@ logd_app_init(struct logd_app *la)
 
 	/* Daemon settings init */
 	la->do_background = 1;
+
+	/* libevent state */
+	la->eb = event_init();
 }
 
 void
@@ -91,6 +96,7 @@ logd_app_remove_pidfile(struct logd_app *la)
 
 	return (0);
 }
+
 int
 logd_app_set_background(struct logd_app *la, int do_background)
 {
