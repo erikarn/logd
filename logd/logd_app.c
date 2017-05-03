@@ -7,10 +7,14 @@
 #include <string.h>
 #include <err.h>
 
+#include <sys/queue.h>
+
 #include <event/event.h>
 #include <event/evsignal.h>
 
 #include "config.h"
+
+#include "logd_source.h"
 
 #include "logd_app.h"
 
