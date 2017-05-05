@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <libutil.h>
 #include <signal.h>
 #include <strings.h>
@@ -9,6 +10,7 @@
 #include <err.h>
 
 #include <sys/mman.h>
+#include <sys/queue.h>
 
 #include <event2/event.h>
 //#include <event/evsignal.h>
@@ -16,6 +18,9 @@
 #include "config.h"
 #include "logd_app.h"
 #include "wait.h"
+
+/* XXX for testing */
+#include "logd_source.h"
 
 static void
 usage(void)
@@ -28,12 +33,24 @@ usage(void)
 	exit(127);
 }
 
+/* XXX temporary */
+static int
+src_read_klog_cb(struct logd_source *ls, void *arg)
+{
+
+	return (0);
+}
+
 int
 main(int argc, char *argv[])
 {
 	struct logd_app la;
 	pid_t ppid;
 	int opt;
+
+	/* XXX temp */
+	int fd;
+	struct logd_source *ls;
 
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		fprintf(stderr, "madvise() failed: %s\n", strerror(errno));
@@ -76,6 +93,16 @@ main(int argc, char *argv[])
 	}
 
 	/* Need to actually do some work here .. */
+
+	/* XXX temporary */
+	fd = open("/dev/klog", O_RDWR);
+	if (fd < 0) {
+		err(1, "%s: open (/dev/klog): ", __func__);
+	}
+	ls = logd_source_create(fd, la.eb, src_read_klog_cb, NULL);
+	/* XXX error check */
+
+	logd_app_run(&la);
 
 	logd_app_remove_pidfile(&la);
 	fprintf(stderr, "%s: exiting\n", __func__);

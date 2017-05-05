@@ -109,3 +109,13 @@ logd_app_set_background(struct logd_app *la, int do_background)
 
 	return (0);
 }
+
+int
+logd_app_run(struct logd_app *la)
+{
+
+	/* XXX remember, occasionally this errors out, sigh */
+	(void) event_base_loop(la->eb, EVLOOP_NO_EXIT_ON_EMPTY);
+
+	return (0);
+}

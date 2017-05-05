@@ -8,6 +8,7 @@ typedef int logd_source_read_cb(struct logd_source *, void *);
 struct logd_source {
 	TAILQ_ENTRY(logd_source) node;
 	int fd;
+	int is_closing;
 	logd_source_read_cb *cb_read;
 	void *cbdata;
 
