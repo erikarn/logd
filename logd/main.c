@@ -10,8 +10,8 @@
 
 #include <sys/mman.h>
 
-#include <event/event.h>
-#include <event/evsignal.h>
+#include <event2/event.h>
+//#include <event/evsignal.h>
 
 #include "config.h"
 #include "logd_app.h"

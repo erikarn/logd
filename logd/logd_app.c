@@ -9,8 +9,8 @@
 
 #include <sys/queue.h>
 
-#include <event/event.h>
-#include <event/evsignal.h>
+#include <event2/event.h>
+//#include <event2/evsignal.h>
 
 #include "config.h"
 
@@ -30,7 +30,7 @@ logd_app_init(struct logd_app *la)
 	la->do_background = 1;
 
 	/* libevent state */
-	la->eb = event_init();
+	la->eb = event_base_new();
 }
 
 void

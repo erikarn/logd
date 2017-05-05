@@ -10,10 +10,16 @@ struct logd_source {
 	int fd;
 	logd_source_read_cb *cb_read;
 	void *cbdata;
+
+	struct event_base *eb;
+	struct event *read_ev;
 };
 
-extern	struct logd_source * logd_source_create(int fd, logd_source_read_cb *read_cb,
-	    void *cbdata);
+extern	struct logd_source * logd_source_create(int fd, struct event_base *eb,
+	    logd_source_read_cb *read_cb, void *cbdata);
 extern	void	logd_source_free(struct logd_source *lsrc);
+
+extern	void logd_source_init(void);
+extern	void logd_source_shutdown(void);
 
 #endif	/* __LOGD_SOURCE_H__ */
