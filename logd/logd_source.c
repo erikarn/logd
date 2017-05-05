@@ -15,7 +15,36 @@
 
 #include "logd_util.h"
 #include "logd_source.h"
+#include "logd_msg.h"
 
+/*
+ * Implement a bufferevent style reader abstraction, which will
+ * handle consuming random log sources and (eventually) pushing back up
+ * status (eg close/error) and logd_msg's.
+ *
+ * This will eventually grow to (optionally) handle writing logd_msg's
+ * to things - so yeah, this may become both a source/sink, and some
+ * bits only do one.
+ */
+
+
+/*
+ * Read some data from the sender side.  Yes, this should really
+ * just use bufferevents.
+ *
+ * syslogd consumes log lines, instead of binary data.
+ *
+ * This logd is aimed at eventually growing to also handle
+ * binary TLVs,  the hope is to make this a bufferevent-y thing
+ * where we read binary data, and call the read callback to
+ * consume buffers until they say we're done (and there's potentially
+ * a partial buffer), or there's an error.  Or, indeed, they may
+ * decide they can't find anything and we hit our read buffer size -
+ * which means that either we've been fed garbage (so we should
+ * like, toss data) or close the connection.
+ *
+ * That'll come!
+ */
 static void
 logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 {

@@ -1,6 +1,7 @@
 PROG=	logd
 SRCS=	logd_app.c main.c wait.c
 SRCS+=	logd_source.c
+SRCS+=	logd_source_klog.c
 
 # XXX this is so we can compile using the internal libevent for now
 # .. and it's totally wrong, and also using CFLAGS like this is also wrong.
