@@ -14,6 +14,7 @@
 #include "config.h"
 
 #include "logd_util.h"
+#include "logd_buf.h"
 #include "logd_source.h"
 #include "logd_msg.h"
 
@@ -51,8 +52,7 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 	struct logd_source *ls = arg;
 	int r;
 
-	/* Yeah, again, should be bufferevent / API */
-	if (ls->rbuf.size - ls->rbuf.len <= 0) {
+	if (logd_buf_get_freespace(&ls->rbuf) == 0) {
 		fprintf(stderr, "%s: FD %d; incoming buf full; need to handle\n",
 		    __func__, ls->fd);
 		event_del(ls->read_ev);
@@ -60,13 +60,24 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 		return;
 	}
 
-	r = read(fd, ls->rbuf.buf + ls->rbuf.len, ls->rbuf.size - ls->rbuf.len);
+	/* XXX hard-coded maxread size */
+	r = logd_buf_read_append(&ls->rbuf, ls->fd, 1024);
+
+	/* buf full */
+	if (r == -2) {
+		fprintf(stderr, "%s: FD %d; incoming buf full; need to handle\n",
+		    __func__, ls->fd);
+		event_del(ls->read_ev);
+		/* XXX TODO: notify owner */
+		return;
+	}
 
 	/* Don't fail temporary errors */
-	if ((r < 0 && errno_sockio_fatal(errno)) || r == 0) {
-		fprintf(stderr, "%s: FD %d; failed; errno=%d\n",
+	if ((r == -1 && errno_sockio_fatal(errno)) || r == 0) {
+		fprintf(stderr, "%s: FD %d; failed; r=%d, errno=%d\n",
 		    __func__,
 		    fd,
+		    r,
 		    errno);
 
 		event_del(ls->read_ev);
@@ -74,14 +85,11 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 		return;
 	}
 
-	/* Again, bufferevent/API */
-	ls->rbuf.len += r;
-
 	fprintf(stderr, "%s: called; r=%d; rbuf.len=%d\n", __func__, r,
-	    ls->rbuf.len);
+	    logd_buf_get_len(&ls->rbuf));
 
 	/* Loop over until we run out of data */
-	while (ls->rbuf.len > 0) {
+	while (logd_buf_get_len(&ls->rbuf) > 0) {
 		/* Yes, reuse r */
 		r = ls->cb_read(ls, ls->cbdata);
 
@@ -114,9 +122,7 @@ logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
 	}
 
 	/* Yeah, should have an abstraction */
-	ls->rbuf.buf = malloc(1024);
-	if (ls->rbuf.buf == NULL) {
-		warn("%s: malloc(1024)", __func__);
+	if (logd_buf_init(&ls->rbuf, 1024) < 0) {
 		free(ls);
 		return (NULL);
 	}
@@ -142,7 +148,7 @@ void
 logd_source_free(struct logd_source *ls)
 {
 
-	free(ls->rbuf.buf);
+	logd_buf_done(&ls->rbuf);
 
 	/* libevent teardown */
 	event_del(ls->read_ev);
