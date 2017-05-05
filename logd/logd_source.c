@@ -48,11 +48,19 @@
 static void
 logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 {
-	char buf[1024];	/* XXX ew static */
 	struct logd_source *ls = arg;
 	int r;
 
-	r = read(fd, buf, sizeof(buf));
+	/* Yeah, again, should be bufferevent / API */
+	if (ls->rbuf.size - ls->rbuf.len <= 0) {
+		fprintf(stderr, "%s: FD %d; incoming buf full; need to handle\n",
+		    __func__, ls->fd);
+		event_del(ls->read_ev);
+		/* XXX TODO: notify owner */
+		return;
+	}
+
+	r = read(fd, ls->rbuf.buf + ls->rbuf.len, ls->rbuf.size - ls->rbuf.len);
 
 	/* Don't fail temporary errors */
 	if ((r < 0 && errno_sockio_fatal(errno)) || r == 0) {
@@ -62,17 +70,35 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 		    errno);
 
 		event_del(ls->read_ev);
-
 		/* XXX TODO: notify owner */
-
 		return;
 	}
 
-	fprintf(stderr, "%s: called; r=%d\n", __func__, r);
+	/* Again, bufferevent/API */
+	ls->rbuf.len += r;
 
-	/* XXX TODO: do something with the data */
-	buf[r] = 0;
-	fprintf(stderr, "  %s\n", buf);
+	fprintf(stderr, "%s: called; r=%d; rbuf.len=%d\n", __func__, r,
+	    ls->rbuf.len);
+
+	/* Loop over until we run out of data */
+	while (ls->rbuf.len > 0) {
+		/* Yes, reuse r */
+		r = ls->cb_read(ls, ls->cbdata);
+
+		/* Error */
+		if (r < 0) {
+			/* XXX TODO: notify owner */
+			event_del(ls->read_ev);
+			break;
+		}
+
+		/* Didn't consume anything from this yet */
+		if (r == 0) {
+			break;
+		}
+
+		/* r > 0; we consumed some data */
+	}
 }
 
 struct logd_source *
@@ -86,6 +112,17 @@ logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
 		warn("%s: calloc", __func__);
 		return (NULL);
 	}
+
+	/* Yeah, should have an abstraction */
+	ls->rbuf.buf = malloc(1024);
+	if (ls->rbuf.buf == NULL) {
+		warn("%s: malloc(1024)", __func__);
+		free(ls);
+		return (NULL);
+	}
+	ls->rbuf.size = 1024;
+
+	/* Rest of the state */
 	ls->fd = fd;
 	ls->cb_read = cb_read;
 	ls->cbdata = cbdata;
@@ -104,6 +141,8 @@ logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
 void
 logd_source_free(struct logd_source *ls)
 {
+
+	free(ls->rbuf.buf);
 
 	/* libevent teardown */
 	event_del(ls->read_ev);

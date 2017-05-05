@@ -14,6 +14,13 @@ struct logd_source {
 
 	struct event_base *eb;
 	struct event *read_ev;
+
+	/* Yeah yeah, I should have a buf abstraction */
+	struct {
+		char *buf;
+		int size;
+		int len;
+	} rbuf;
 };
 
 extern	struct logd_source * logd_source_create(int fd, struct event_base *eb,
