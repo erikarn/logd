@@ -15,8 +15,8 @@
 
 #include "logd_util.h"
 #include "logd_buf.h"
-#include "logd_source.h"
 #include "logd_msg.h"
+#include "logd_source.h"
 
 /*
  * Implement a bufferevent style reader abstraction, which will
@@ -27,7 +27,6 @@
  * to things - so yeah, this may become both a source/sink, and some
  * bits only do one.
  */
-
 
 /*
  * Read some data from the sender side.  Yes, this should really
@@ -91,7 +90,7 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 	/* Loop over until we run out of data */
 	while (logd_buf_get_len(&ls->rbuf) > 0) {
 		/* Yes, reuse r */
-		r = ls->cb_read(ls, ls->cbdata);
+		r = ls->child_cb.cb_read(ls, ls->child_cb.cbdata);
 
 		/* Error */
 		if (r < 0) {
@@ -130,9 +129,11 @@ logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
 
 	/* Rest of the state */
 	ls->fd = fd;
-	ls->cb_read = cb_read;
-	ls->cbdata = cbdata;
 	ls->eb = eb;
+
+	/* Child state */
+	ls->child_cb.cb_read = cb_read;
+	ls->child_cb.cbdata = cbdata;
 
 	/* libevent setup */
 	ls->read_ev = event_new(ls->eb, ls->fd, EV_READ | EV_PERSIST,
