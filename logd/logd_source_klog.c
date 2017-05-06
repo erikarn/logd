@@ -25,6 +25,20 @@
 static int
 logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 {
+#if 0
+	char *p, *line;
+
+	/*
+	 * Loop over, consuming lines until we can't find
+	 * any more complete logging lines.
+	 */
+
+                for (p = line; (q = strchr(p, '\n')) != NULL; p = q + 1) {
+                        *q = '\0';
+                        printsys(p);
+                }
+#endif
+
 
 	return (0);
 }

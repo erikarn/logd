@@ -87,7 +87,9 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 	fprintf(stderr, "%s: called; r=%d; rbuf.len=%d\n", __func__, r,
 	    logd_buf_get_len(&ls->rbuf));
 
-	/* Loop over until we run out of data */
+	/*
+	 * Loop over until we run out of data or error.
+	 */
 	while (logd_buf_get_len(&ls->rbuf) > 0) {
 		/* Yes, reuse r */
 		r = ls->child_cb.cb_read(ls, ls->child_cb.cbdata);
@@ -120,7 +122,11 @@ logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
 		return (NULL);
 	}
 
-	/* Yeah, should have an abstraction */
+	/*
+	 * Setup incoming buffer.
+	 *
+	 * Maybe this should be part of the child, not this!
+	 */
 	if (logd_buf_init(&ls->rbuf, 1024) < 0) {
 		free(ls);
 		return (NULL);
@@ -148,6 +154,11 @@ logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
 void
 logd_source_free(struct logd_source *ls)
 {
+
+	/* Tell the child we're going away */
+	if (ls->child_cb.cb_close != NULL) {
+		ls->child_cb.cb_close(ls, ls->child_cb.cbdata);
+	}
 
 	logd_buf_done(&ls->rbuf);
 
