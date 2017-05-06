@@ -15,6 +15,7 @@
 #include "config.h"
 
 #include "logd_buf.h"
+#include "logd_msg.h"
 #include "logd_source.h"
 
 #include "logd_app.h"
