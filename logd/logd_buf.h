@@ -48,6 +48,7 @@ extern	void logd_buf_done(struct logd_buf *b);
 extern	int logd_buf_consume(struct logd_buf *b, char *buf, int size);
 extern	int logd_buf_append(struct logd_buf *b, const char *buf, int len,
 	    int do_partial);
+extern	int logd_buf_populate(struct logd_buf *b, const char *buf, int size);
 
 extern	int logd_buf_read_append(struct logd_buf *b, int fd, int max_size);
 extern	int logd_buf_write_consume(struct logd_buf *b, int fd, int max_size);

@@ -86,6 +86,22 @@ logd_buf_append(struct logd_buf *b, const char *buf, int len,
 	return (copy_len);
 }
 
+int
+logd_buf_populate(struct logd_buf *b, const char *buf, int size)
+{
+	int copy_len;
+
+	copy_len = MIN(size, b->size);
+
+	/* Optimisation */
+	if (copy_len == 0)
+		return (0);
+
+	memcpy(b->buf, buf, copy_len);
+	b->len = copy_len;
+	return (copy_len);
+}
+
 /*
  * Read data from FD into logd_buf.
  *
@@ -148,17 +164,14 @@ int
 logd_trim_trailing_newline(struct logd_buf *b)
 {
 	int i = 0;
+	char c;
 
 	while (b->len >= 0) {
-		switch (b->buf[b->len - 1]) {
-		case '\r':
-		case '\n':
-			i++;
-			b->len--;
-			continue;
-		default:
+		c = (b->buf[b->len - 1]);
+		if (c != '\r' && c != '\n')
 			break;
-		}
+		i++;
+		b->len--;
 	}
 
 	return (i);

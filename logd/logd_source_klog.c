@@ -58,12 +58,13 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 		}
 
 		/* Now, we have a string of len 'l', so populate */
-		m = logd_msg_create();
+		m = logd_msg_create(l);
 		if (m == NULL)
 			return (-1);
 		logd_msg_set_str(m, p, l);
 
 		/* XXX rest of the parsing, etc to do here */
+		logd_trim_trailing_newline(&m->buf);
 
 		/* Consume the buffer - XXX TODO: l or l+1? */
 		logd_buf_consume(&ls->rbuf, NULL, l);

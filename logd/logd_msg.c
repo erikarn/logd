@@ -19,23 +19,30 @@
 
 
 struct logd_msg *
-logd_msg_create(void)
+logd_msg_create(int len)
 {
 	struct logd_msg *m;
 
 	m = calloc(1, sizeof(*m));
+
 	if (m == NULL) {
 		warn("%s: calloc", __func__);
 		return (NULL);
 	}
+
+	if (logd_buf_init(&m->buf, len) < 0) {
+		free(m);
+		return (NULL);
+	}
+
 	return (m);
 }
 
 void
 logd_msg_free(struct logd_msg *lm)
 {
-	if (lm->buf != NULL)
-		free(lm->buf);
+
+	logd_buf_done(&lm->buf);
 	free(lm);
 }
 
@@ -53,23 +60,11 @@ logd_set_timestamps(struct logd_msg *lm, struct timespec *tr,
 int
 logd_msg_set_str(struct logd_msg *lm, const char *buf, int len)
 {
+	int r;
 
-	/* Free existing buf */
-	if (lm->buf != NULL)
-		free(lm->buf);
-
-	/* Allocate new buffer */
-	lm->buf = malloc(len + 1);
-	if (lm->buf == NULL) {
-		warn("%s: malloc(%d)", __func__, len + 1);
+	r = logd_buf_populate(&lm->buf, buf, len);
+	if (r != len)
 		return (-1);
-	}
-
-	/* Copy; NUL terminate */
-	memcpy(lm->buf, buf, len);
-	lm->buf[len] = '\0';
-	lm->len = len;
-	lm->size = len + 1;
 
 	return (0);
 }
