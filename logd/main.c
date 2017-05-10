@@ -23,6 +23,7 @@
 #include "logd_buf.h"
 #include "logd_msg.h"
 #include "logd_source.h"
+#include "logd_source_klog.h"
 
 static void
 usage(void)
@@ -35,11 +36,20 @@ usage(void)
 	exit(127);
 }
 
-/* XXX temporary */
+/* XXX testing */
 static int
-src_read_klog_cb(struct logd_source *ls, void *arg)
+test_logmsg_read_cb(struct logd_source *ls, void *arg, struct logd_msg *m)
 {
 
+	fprintf(stderr, "%s: called; m=%p\n", __func__, m);
+	return (0);
+}
+
+static int
+test_logmsg_err_cb(struct logd_source *ls, void *arg, int err)
+{
+
+	fprintf(stderr, "%s: called; err=%d\n", __func__, err);
 	return (0);
 }
 
@@ -101,8 +111,11 @@ main(int argc, char *argv[])
 	if (fd < 0) {
 		err(1, "%s: open (/dev/klog): ", __func__);
 	}
-	ls = logd_source_create(fd, la.eb, src_read_klog_cb, NULL);
-	/* XXX error check */
+
+	ls = logd_source_klog_create(fd, la.eb);
+	/* XXX check */
+	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
+	    test_logmsg_err_cb, NULL);
 
 	logd_app_run(&la);
 

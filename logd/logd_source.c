@@ -29,6 +29,41 @@
  */
 
 /*
+ * Handle an error whilst doing read IO.
+ *
+ * This stops subsequent read IO, notifies the child that there's an error,
+ * and the child gets to determine what they'll do.
+ */
+static void
+logd_source_read_error(struct logd_source *ls, int errcode, int xerror)
+{
+
+	event_del(ls->read_ev);
+	ls->child_cb.cb_error(ls, ls->child_cb.cbdata,
+	    errcode);
+}
+
+/*
+ * Child method: start read IO.
+ */
+void
+logd_source_read_start(struct logd_source *ls)
+{
+
+	event_add(ls->read_ev, NULL);
+}
+
+/*
+ * Child method: stop read IO.
+ */
+void
+logd_source_read_stop(struct logd_source *ls)
+{
+
+	event_del(ls->read_ev);
+}
+
+/*
  * Read some data from the sender side.  Yes, this should really
  * just use bufferevents.
  *
@@ -54,8 +89,8 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 	if (logd_buf_get_freespace(&ls->rbuf) == 0) {
 		fprintf(stderr, "%s: FD %d; incoming buf full; need to handle\n",
 		    __func__, ls->fd);
-		event_del(ls->read_ev);
-		/* XXX TODO: notify owner */
+		/* notify child */
+		logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_FULL, 0);
 		return;
 	}
 
@@ -66,21 +101,34 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 	if (r == -2) {
 		fprintf(stderr, "%s: FD %d; incoming buf full; need to handle\n",
 		    __func__, ls->fd);
-		event_del(ls->read_ev);
-		/* XXX TODO: notify owner */
+		/* notify child */
+		logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_FULL, 0);
 		return;
 	}
 
 	/* Don't fail temporary errors */
-	if ((r == -1 && errno_sockio_fatal(errno)) || r == 0) {
+	if (r == -1 && errno_sockio_fatal(errno)) {
 		fprintf(stderr, "%s: FD %d; failed; r=%d, errno=%d\n",
 		    __func__,
 		    fd,
 		    r,
 		    errno);
+		/* notify child; they can notify owner */
+		logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_ERROR, errno);
+		return;
+	}
 
-		event_del(ls->read_ev);
-		/* XXX TODO: notify owner */
+	/* Not fatal socket errors - eg, EWOULDBLOCK */
+	if (r == -1) {
+		return;
+	}
+
+	if (r == 0) {
+		/*
+		 * notify child; they can tell the owner about EOF
+		 * and/or re-open things as appropriate.
+		 */
+		logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_EOF, 0);
 		return;
 	}
 
@@ -96,8 +144,9 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 
 		/* Error */
 		if (r < 0) {
-			/* XXX TODO: notify owner */
-			event_del(ls->read_ev);
+			/* notify owner - they can decide what to do */
+			ls->owner_cb.cb_error(ls, ls->owner_cb.cbdata,
+			    LOGD_SOURCE_ERROR_READ_ERROR);
 			break;
 		}
 
@@ -111,8 +160,7 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 }
 
 struct logd_source *
-logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
-    void *cbdata)
+logd_source_create(int fd, struct event_base *eb)
 {
 	struct logd_source *ls;
 
@@ -136,10 +184,6 @@ logd_source_create(int fd, struct event_base *eb, logd_source_read_cb *cb_read,
 	/* Rest of the state */
 	ls->fd = fd;
 	ls->eb = eb;
-
-	/* Child state */
-	ls->child_cb.cb_read = cb_read;
-	ls->child_cb.cbdata = cbdata;
 
 	/* libevent setup */
 	ls->read_ev = event_new(ls->eb, ls->fd, EV_READ | EV_PERSIST,
@@ -167,6 +211,32 @@ logd_source_free(struct logd_source *ls)
 	event_free(ls->read_ev);
 
 	free(ls);
+}
+
+void
+logd_source_set_child_callbacks(struct logd_source *ls,
+    logd_source_read_cb *cb_read,
+    logd_source_error_cb *cb_error,
+    logd_source_close_cb *cb_close,
+    void *cbdata)
+{
+
+	ls->child_cb.cb_read = cb_read;
+	ls->child_cb.cb_error = cb_error;
+	ls->child_cb.cb_close = cb_close;
+	ls->child_cb.cbdata = cbdata;
+}
+
+void
+logd_source_set_owner_callbacks(struct logd_source *ls,
+    logd_source_logmsg_read_cb *cb_logmsg_read,
+    logd_source_error_cb *cb_error,
+    void *cbdata)
+{
+
+	ls->owner_cb.cb_logmsg_read = cb_logmsg_read;
+	ls->owner_cb.cb_error = cb_error;
+	ls->owner_cb.cbdata = cbdata;
 }
 
 void
