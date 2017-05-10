@@ -52,4 +52,6 @@ extern	int logd_buf_append(struct logd_buf *b, const char *buf, int len,
 extern	int logd_buf_read_append(struct logd_buf *b, int fd, int max_size);
 extern	int logd_buf_write_consume(struct logd_buf *b, int fd, int max_size);
 
+extern	int logd_trim_trailing_newline(struct logd_buf *b);
+
 #endif	/* __LOGD_BUF_H__ */

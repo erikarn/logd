@@ -143,3 +143,23 @@ logd_buf_write_consume(struct logd_buf *b, int fd, int max_size)
 
 	return (r);
 }
+
+int
+logd_trim_trailing_newline(struct logd_buf *b)
+{
+	int i = 0;
+
+	while (b->len >= 0) {
+		switch (b->buf[b->len - 1]) {
+		case '\r':
+		case '\n':
+			i++;
+			b->len--;
+			continue;
+		default:
+			break;
+		}
+	}
+
+	return (i);
+}
