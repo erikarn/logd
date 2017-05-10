@@ -28,6 +28,28 @@
  * bits only do one.
  */
 
+static int
+logd_source_flush_read_msgs(struct logd_source *ls)
+{
+	int ret = 0;
+	struct logd_msg *m;
+
+	while ((m = TAILQ_FIRST(&ls->read_msgs)) != NULL) {
+		TAILQ_REMOVE(&ls->read_msgs, m, node);
+		logd_msg_free(m);
+	}
+
+	return (ret);
+}
+
+int
+logd_source_add_read_msg(struct logd_source *ls, struct logd_msg *m)
+{
+
+	TAILQ_INSERT_TAIL(&ls->read_msgs, m, node);
+	return (0);
+}
+
 /*
  * Handle an error whilst doing read IO.
  *
@@ -84,6 +106,7 @@ static void
 logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 {
 	struct logd_source *ls = arg;
+	struct logd_msg *m;
 	int r;
 
 	if (logd_buf_get_freespace(&ls->rbuf) == 0) {
@@ -157,6 +180,18 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 
 		/* r > 0; we consumed some data */
 	}
+
+	/*
+	 * XXX TODO: defer this?
+	 *
+	 * Whilst we have logd_msg entries, pass them up.
+	 */
+	while ((m = TAILQ_FIRST(&ls->read_msgs)) != NULL) {
+		TAILQ_REMOVE(&ls->read_msgs, m, node);
+		ls->owner_cb.cb_logmsg_read(ls, ls->owner_cb.cbdata, m);
+		/* owner owns logmsg now */
+	}
+
 }
 
 struct logd_source *
@@ -189,6 +224,8 @@ logd_source_create(int fd, struct event_base *eb)
 	ls->read_ev = event_new(ls->eb, ls->fd, EV_READ | EV_PERSIST,
 	    logd_source_read_evcb, ls);
 
+	TAILQ_INIT(&ls->read_msgs);
+
 	/* Start reading - maybe this should be a method */
 	event_add(ls->read_ev, NULL);
 
@@ -205,6 +242,9 @@ logd_source_free(struct logd_source *ls)
 	}
 
 	logd_buf_done(&ls->rbuf);
+
+	/* Iterate through, free queued sources */
+	logd_source_flush_read_msgs(ls);
 
 	/* libevent teardown */
 	event_del(ls->read_ev);

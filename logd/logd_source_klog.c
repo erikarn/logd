@@ -35,22 +35,53 @@
 static int
 logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 {
-#if 0
-	char *p, *line;
+	struct logd_msg *m;
+	const char *p, *q;
+	int l, ret = 0;
 
-	/*
-	 * Loop over, consuming lines until we can't find
-	 * any more complete logging lines.
-	 */
+	while (logd_buf_get_len(&ls->rbuf) != 0) {
+		/* start of line */
+		p = logd_buf_get_buf(&ls->rbuf);
 
-                for (p = line; (q = strchr(p, '\n')) != NULL; p = q + 1) {
-                        *q = '\0';
-                        printsys(p);
-                }
-#endif
+		/* look for a \n */
+		q = memchr(p, '\n', logd_buf_get_len(&ls->rbuf));
+		if (q == NULL) {
+			/* We don't have a complete line, so bail */
+			break;
+		}
 
+		/* we have a line, so create a buf for it, and consume */
+		l = q - p + 1;
+		if (l < 0) {
+			/* Error, shouldn't happen */
+			return (-1);
+		}
 
-	return (0);
+		/* Now, we have a string of len 'l', so populate */
+		m = logd_msg_create();
+		if (m == NULL)
+			return (-1);
+		logd_msg_set_str(m, p, l);
+
+		/* XXX rest of the parsing, etc to do here */
+
+		/* Consume the buffer - XXX TODO: l or l+1? */
+		logd_buf_consume(&ls->rbuf, NULL, l);
+
+		/* Add the message to the source */
+		if (logd_source_add_read_msg(ls, m) < 0) {
+			/*
+			 * XXX TODO should notify caller that we couldn't add
+			 * the message
+			 */
+			logd_msg_free(m);
+			continue;
+		}
+
+		ret++;
+	}
+
+	return (ret);
 }
 
 static int

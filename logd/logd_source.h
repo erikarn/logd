@@ -19,13 +19,15 @@ struct logd_source {
 	int fd;
 	int is_closing;
 
-#if 0
+#if 1
 	/*
 	 * List of messages that we've read that the owner should
 	 * consume.
 	 */
 	TAILQ_HEAD(, logd_msg) read_msgs;
+#endif
 
+#if 0
 	/*
 	 * List of messages that we've been asked to send.
 	 */
@@ -73,6 +75,8 @@ extern	void logd_source_set_owner_callbacks(struct logd_source *ls,
 
 extern	void logd_source_read_start(struct logd_source *ls);
 extern	void logd_source_read_stop(struct logd_source *ls);
+extern	int logd_source_add_read_msg(struct logd_source *ls,
+	    struct logd_msg *m);
 
 extern	void logd_source_init(void);
 extern	void logd_source_shutdown(void);

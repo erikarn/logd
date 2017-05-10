@@ -55,7 +55,8 @@ logd_buf_consume(struct logd_buf *b, char *buf, int size)
 		return (0);
 
 	/* copy */
-	memcpy(buf, b->buf, copy_size);
+	if (buf)
+		memcpy(buf, b->buf, copy_size);
 
 	/* shuffle non-copied data back */
 	memmove(b->buf, b->buf + copy_size, b->size - copy_size);

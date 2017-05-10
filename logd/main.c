@@ -41,7 +41,8 @@ static int
 test_logmsg_read_cb(struct logd_source *ls, void *arg, struct logd_msg *m)
 {
 
-	fprintf(stderr, "%s: called; m=%p\n", __func__, m);
+	fprintf(stderr, "%s: called; m=%p; msg=%.*s\n", __func__, m, m->len, m->buf);
+	logd_msg_free(m);
 	return (0);
 }
 
