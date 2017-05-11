@@ -37,7 +37,7 @@ logd_source_klog_parse_facility(struct logd_msg *m)
 	char numbuf[16];
 	const char *b, *n;
 	char *e;
-	int i, f;
+	int i, f, len;
 
 	if (logd_buf_get_len(&m->buf) < 2)
 		return (0);
@@ -53,19 +53,29 @@ logd_source_klog_parse_facility(struct logd_msg *m)
 	if (n == NULL)
 		return (0);
 
-	/* Copy out string */
-	memcpy(numbuf, b + 1, (n - b));
-	numbuf[(n - b) + 1] = '\0';
+	/*
+	 * n points to the first >;
+	 * n - b + 1 is the length of the buffer to remove.
+	 */
+	len = (n - b) + 1;
+	if (len < 2)
+		return (0);
+
+	/* Copy out string minus the < and > */
+	memcpy(numbuf, b + 1, len - 2);
+	numbuf[len - 2] = '\0';
 
 	i = strtoul(numbuf, &e, 0);
 	if (b == e)
 		return (0);
 
-	fprintf(stderr, "%s: parsed %d\n", __func__, i);
+	fprintf(stderr, "%s: parsed %d (len %d)\n", __func__, i, len);
 
-	return (1);
+	logd_buf_consume(&m->buf, NULL, len);
+
+	/* Return the number of bytes consumed */
+	return (len);
 }
-
 
 /*
  * Loop over and attempt to consume a message.
@@ -81,7 +91,7 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 {
 	struct logd_msg *m;
 	const char *p, *q;
-	int l, ret = 0;
+	int l, ret = 0, r;
 
 	while (logd_buf_get_len(&ls->rbuf) != 0) {
 		/* start of line */
@@ -114,7 +124,7 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 		logd_buf_consume(&ls->rbuf, NULL, l);
 
 		/* Parse the facility out */
-		logd_source_klog_parse_facility(m);
+		r = logd_source_klog_parse_facility(m);
 
 		/* Add the message to the source */
 		if (logd_source_add_read_msg(ls, m) < 0) {
