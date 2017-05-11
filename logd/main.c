@@ -40,13 +40,8 @@ usage(void)
 static int
 test_logmsg_read_cb(struct logd_source *ls, void *arg, struct logd_msg *m)
 {
+	logd_msg_print(stderr, m);
 
-	fprintf(stderr, "%s: called; m=%p; msg=%.*s\n",
-	    __func__,
-	    m,
-	    logd_buf_get_len(&m->buf),
-	    logd_buf_get_buf(&m->buf));
-	logd_msg_free(m);
 	return (0);
 }
 

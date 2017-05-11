@@ -71,6 +71,10 @@ logd_source_klog_parse_facility(struct logd_msg *m)
 
 	fprintf(stderr, "%s: parsed %d (len %d)\n", __func__, i, len);
 
+	m->msg_orig_prifac = i;
+	m->msg_priority = i & 0x7;
+	m->msg_facility = i >> 3;
+
 	logd_buf_consume(&m->buf, NULL, len);
 
 	/* Return the number of bytes consumed */
@@ -91,7 +95,7 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 {
 	struct logd_msg *m;
 	const char *p, *q;
-	int l, ret = 0, r;
+	int l, ret = 0;
 
 	while (logd_buf_get_len(&ls->rbuf) != 0) {
 		/* start of line */
@@ -124,7 +128,7 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 		logd_buf_consume(&ls->rbuf, NULL, l);
 
 		/* Parse the facility out */
-		r = logd_source_klog_parse_facility(m);
+		logd_source_klog_parse_facility(m);
 
 		/* Add the message to the source */
 		if (logd_source_add_read_msg(ls, m) < 0) {

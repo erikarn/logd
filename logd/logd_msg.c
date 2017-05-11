@@ -7,6 +7,9 @@
 #include <string.h>
 #include <err.h>
 
+#define SYSLOG_NAMES    1
+#include <sys/syslog.h>
+
 #include <sys/queue.h>
 
 #include <event2/event.h>
@@ -34,6 +37,10 @@ logd_msg_create(int len)
 		free(m);
 		return (NULL);
 	}
+
+	m->msg_orig_prifac = -1;
+	m->msg_priority = -1;
+	m->msg_facility = -1;
 
 	return (m);
 }
@@ -65,6 +72,59 @@ logd_msg_set_str(struct logd_msg *lm, const char *buf, int len)
 	r = logd_buf_populate(&lm->buf, buf, len);
 	if (r != len)
 		return (-1);
+
+	return (0);
+}
+
+static const char *
+logd_msg_get_syslog_facility(struct logd_msg *m)
+{
+	const CODE *c;
+
+	if (m->msg_facility == -1)
+		return ("none");
+
+	for (c = facilitynames; c->c_name; c++) {
+		/*
+		 * Shifted because the facility levels in facilitynames
+		 * are shifted..
+		 */
+		if (c->c_val == (m->msg_facility << 3))
+			return (c->c_name);
+	}
+
+	return ("unknown");
+}
+
+static const char *
+logd_msg_get_syslog_priority(struct logd_msg *m)
+{
+	const CODE *c;
+
+	if (m->msg_priority == -1)
+		return ("none");
+	for (c = prioritynames; c->c_name; c++) {
+		if (c->c_val == m->msg_priority)
+			return (c->c_name);
+	}
+
+	return ("unknown");
+}
+
+int
+logd_msg_print(FILE *fp, struct logd_msg *m)
+{
+
+	fprintf(fp, "%s: called; m=%p; (%d) (%d:%s/%d:%s) msg=%.*s\n",
+	    __func__,
+	    m,
+	    m->msg_orig_prifac,
+	    m->msg_facility,
+	    logd_msg_get_syslog_facility(m),
+	    m->msg_priority,
+	    logd_msg_get_syslog_priority(m),
+	    logd_buf_get_len(&m->buf),
+	    logd_buf_get_buf(&m->buf));
 
 	return (0);
 }
