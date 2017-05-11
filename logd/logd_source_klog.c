@@ -24,6 +24,50 @@
  */
 
 /*
+ * Parse the facility field of a klog/syslog message.
+ * It's an integer value formatted with < and > around it.
+ *
+ * Returns 0 if it wasn't found, or >0 indiciated it was
+ * found, complete with the facility and priority values
+ * parsed out and the facility value stripped.
+ */
+static int
+logd_source_klog_parse_facility(struct logd_msg *m)
+{
+	char numbuf[16];
+	const char *b, *n;
+	char *e;
+	int i, f;
+
+	if (logd_buf_get_len(&m->buf) < 2)
+		return (0);
+
+	b = logd_buf_get_buf(&m->buf);
+
+	/* First < */
+	if (b[0] != '<')
+		return (0);
+
+	/* Find > */
+	n = memchr(b + 1, '>', logd_buf_get_len(&m->buf) - 1);
+	if (n == NULL)
+		return (0);
+
+	/* Copy out string */
+	memcpy(numbuf, b + 1, (n - b));
+	numbuf[(n - b) + 1] = '\0';
+
+	i = strtoul(numbuf, &e, 0);
+	if (b == e)
+		return (0);
+
+	fprintf(stderr, "%s: parsed %d\n", __func__, i);
+
+	return (1);
+}
+
+
+/*
  * Loop over and attempt to consume a message.
  * Note that in syslog format things are terminated by a \n, and we
  * may end up reading a partial buffer - so yes we have to also handle
@@ -68,6 +112,9 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 
 		/* Consume the buffer - XXX TODO: l or l+1? */
 		logd_buf_consume(&ls->rbuf, NULL, l);
+
+		/* Parse the facility out */
+		logd_source_klog_parse_facility(m);
 
 		/* Add the message to the source */
 		if (logd_source_add_read_msg(ls, m) < 0) {
