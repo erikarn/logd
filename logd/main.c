@@ -117,7 +117,14 @@ main(int argc, char *argv[])
 	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
 	    test_logmsg_err_cb, NULL);
 
+	/* /var/run/log - global rw */
+
+	/* /var/run/logpriv - root only rw */
+
 	logd_app_run(&la);
+
+	/* XXX during shutdown, unlink the UNIX domain logd sources that need it */
+	/* XXX and yes, close FDs, etc */
 
 	logd_app_remove_pidfile(&la);
 	fprintf(stderr, "%s: exiting\n", __func__);
