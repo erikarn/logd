@@ -237,8 +237,8 @@ logd_source_free(struct logd_source *ls)
 {
 
 	/* Tell the child we're going away */
-	if (ls->child_cb.cb_close != NULL) {
-		ls->child_cb.cb_close(ls, ls->child_cb.cbdata);
+	if (ls->child_cb.cb_free != NULL) {
+		ls->child_cb.cb_free(ls, ls->child_cb.cbdata);
 	}
 
 	logd_buf_done(&ls->rbuf);
@@ -257,13 +257,13 @@ void
 logd_source_set_child_callbacks(struct logd_source *ls,
     logd_source_read_cb *cb_read,
     logd_source_error_cb *cb_error,
-    logd_source_close_cb *cb_close,
+    logd_source_free_cb *cb_free,
     void *cbdata)
 {
 
 	ls->child_cb.cb_read = cb_read;
 	ls->child_cb.cb_error = cb_error;
-	ls->child_cb.cb_close = cb_close;
+	ls->child_cb.cb_free = cb_free;
 	ls->child_cb.cbdata = cbdata;
 }
 

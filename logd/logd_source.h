@@ -4,7 +4,7 @@
 struct logd_source;
 
 typedef int logd_source_read_cb(struct logd_source *, void *);
-typedef int logd_source_close_cb(struct logd_source *, void *);
+typedef int logd_source_free_cb(struct logd_source *, void *);
 
 typedef int logd_source_logmsg_read_cb(struct logd_source *, void *,
 	    struct logd_msg *m);
@@ -38,7 +38,7 @@ struct logd_source {
 	struct {
 		logd_source_read_cb *cb_read;
 		logd_source_error_cb *cb_error;
-		logd_source_close_cb *cb_close;
+		logd_source_free_cb *cb_free;
 		void *cbdata;
 	} child_cb;
 
@@ -65,7 +65,7 @@ extern	void	logd_source_free(struct logd_source *lsrc);
 extern	void logd_source_set_child_callbacks(struct logd_source *ls,
 	    logd_source_read_cb *cb_read,
 	    logd_source_error_cb *cb_error,
-	    logd_source_close_cb *cb_close,
+	    logd_source_free_cb *cb_free,
 	    void *cbdata);
 
 extern	void logd_source_set_owner_callbacks(struct logd_source *ls,
