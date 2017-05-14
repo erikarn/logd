@@ -9,6 +9,9 @@
 #include <fcntl.h>
 
 #include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/stat.h>
 
 #include <event2/event.h>
 
@@ -19,6 +22,13 @@
 #include "logd_source.h"
 #include "logd_source_klog.h"
 
+#define	KLOG_FD_TYPE_NONE	0
+#define	KLOG_FD_TYPE_FIFO	1
+#define	KLOG_FD_TYPE_UDP_SOCKET	2
+#define	KLOG_FD_TYPE_TCP_SOCKET	3
+#define	KLOG_FD_TYPE_FILE	4
+#define	KLOG_FD_TYPE_KLOG	5
+
 /*
  * Implement a simple klog source.  This consumes messages
  * and add timestamping, logging level, etc.
@@ -28,6 +38,8 @@ struct logd_source_klog {
 	int fd;
 	char *path;
 	int is_readonly;
+	int fd_type;
+	int do_unlink;
 };
 
 /*
@@ -104,6 +116,8 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 	const char *p, *q;
 	int l, ret = 0;
 
+	fprintf(stderr, "%s: called\n", __func__);
+
 	while (logd_buf_get_len(&ls->rbuf) != 0) {
 		/* start of line */
 		p = logd_buf_get_buf(&ls->rbuf);
@@ -112,6 +126,7 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 		q = memchr(p, '\n', logd_buf_get_len(&ls->rbuf));
 		if (q == NULL) {
 			/* We don't have a complete line, so bail */
+			fprintf(stderr, "%s: still waiting for EOL\n", __func__);
 			break;
 		}
 
@@ -182,9 +197,57 @@ logd_source_klog_open_cb(struct logd_source *ls, void *arg)
 
 	fprintf(stderr, "%s: called\n", __func__);
 
-	fd = open(kl->path, O_RDONLY);
-	if (fd == -1) {
-		warn("%s: open(%s)", __func__, kl->path);
+	switch (kl->fd_type) {
+	case KLOG_FD_TYPE_KLOG:
+		/* /dev/klog - always open read only for now */
+		fd = open(kl->path, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
+		if (fd < 0) {
+			warn("%s: open(%s)", __func__, kl->path);
+			return (-1);
+		}
+
+		/* Make socket non-blocking */
+		evutil_make_socket_nonblocking(fd);
+		break;
+	case KLOG_FD_TYPE_FIFO:
+		{
+			struct sockaddr_un sa;
+
+			/* Remove socket before we re-create it */
+			unlink(kl->path);
+
+			/* Create socket */
+			fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+			if (fd < 0) {
+				warn("%s: open(%s)", __func__, kl->path);
+				return (-1);
+			}
+
+
+			/* Bind */
+			bzero(&sa, sizeof(sa));
+			sa.sun_family = AF_UNIX;
+			strncpy(sa.sun_path, kl->path, sizeof(sa.sun_path) - 1);
+			if (bind(fd, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
+				warn("%s: bind(%s)", __func__, kl->path);
+				close(fd);
+				return (-1);
+			}
+
+			/* chmod - default mode for now */
+			if (chmod(kl->path, DEFFILEMODE) < 0) {
+				warn("%s: chmod(%s, 0666)", __func__, kl->path);
+				close(fd);
+				return (-1);
+			}
+
+			/* Make socket non-blocking */
+			evutil_make_socket_nonblocking(fd);
+		}
+		break;
+	default:
+		fprintf(stderr, "%s: unknown fd type (%d)\n", __func__,
+		    kl->fd_type);
 		return (-1);
 	}
 
@@ -197,9 +260,15 @@ logd_source_klog_open_cb(struct logd_source *ls, void *arg)
 static int
 logd_source_klog_close_cb(struct logd_source *ls, void *arg)
 {
+	struct logd_source_klog *kl = arg;
 
 	fprintf(stderr, "%s: called\n", __func__);
-	/* Note: for now, main class calls close() */
+
+	/* Note: for now, main class has called close() already */
+
+	if (kl->do_unlink) {
+		unlink(kl->path);
+	}
 	return (0);
 }
 
@@ -233,6 +302,43 @@ logd_source_klog_create_read_dev(struct event_base *eb,
 	    kl);
 
 	kl->path = strdup(path);
+	kl->is_readonly = 1;
+	kl->fd_type = KLOG_FD_TYPE_KLOG;
+
+	return (ls);
+}
+
+struct logd_source *
+logd_source_klog_create_unix_fifo(struct event_base *eb,
+    const char *path)
+{
+	struct logd_source *ls;
+	struct logd_source_klog *kl;
+
+	kl = calloc(1, sizeof(*kl));
+	if (kl == NULL) {
+		warn("%s: calloc", __func__);
+		return (NULL);
+	}
+
+	ls = logd_source_create(eb);
+	if (ls == NULL) {
+		free(kl);
+		return (NULL);
+	}
+
+	/* Do other setup */
+	logd_source_set_child_callbacks(ls,
+	    logd_source_klog_read_cb,
+	    logd_source_klog_error_cb,
+	    logd_source_klog_free_cb,
+	    logd_source_klog_open_cb,
+	    logd_source_klog_close_cb,
+	    kl);
+
+	kl->path = strdup(path);
+	kl->do_unlink = 1;
+	kl->fd_type = KLOG_FD_TYPE_FIFO;
 
 	return (ls);
 }
