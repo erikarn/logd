@@ -168,6 +168,57 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 	return (ret);
 }
 
+/*
+ * UNIX domain socket / UDP socket version of the above.
+ *
+ * If the read buffer is full then we also have to handle that and
+ * potentially flush the buffer.
+ */
+static int
+logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
+{
+	struct logd_msg *m;
+	const char *p, *q;
+	int l, ret = 0;
+
+	fprintf(stderr, "%s: called\n", __func__);
+
+	if (logd_buf_get_len(&ls->rbuf) == 0) {
+		return (0);
+
+	}
+
+	p = logd_buf_get_buf(&ls->rbuf);
+	l = logd_buf_get_len(&ls->rbuf);
+
+	/* Now, we have a string of len 'l', so populate */
+	m = logd_msg_create(l);
+	if (m == NULL)
+		return (-1);
+	logd_msg_set_str(m, p, l);
+
+	/* XXX rest of the parsing, etc to do here */
+	logd_trim_trailing_newline(&m->buf);
+
+	/* Consume the buffer - XXX TODO: l or l+1? */
+	logd_buf_consume(&ls->rbuf, NULL, l);
+
+	/* Parse the facility out */
+	logd_source_klog_parse_facility(m);
+
+	/* Add the message to the source */
+	if (logd_source_add_read_msg(ls, m) < 0) {
+		/*
+		 * XXX TODO should notify caller that we couldn't add
+		 * the message
+		 */
+		logd_msg_free(m);
+		return (0);
+	}
+
+	return (1);
+}
+
 static int
 logd_source_klog_error_cb(struct logd_source *ls, void *arg, int error)
 {
@@ -329,7 +380,7 @@ logd_source_klog_create_unix_fifo(struct event_base *eb,
 
 	/* Do other setup */
 	logd_source_set_child_callbacks(ls,
-	    logd_source_klog_read_cb,
+	    logd_source_klog_read_dgram_cb,
 	    logd_source_klog_error_cb,
 	    logd_source_klog_free_cb,
 	    logd_source_klog_open_cb,
