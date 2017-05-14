@@ -6,6 +6,7 @@
 #include <strings.h>
 #include <string.h>
 #include <err.h>
+#include <fcntl.h>
 
 #include <sys/queue.h>
 
@@ -22,6 +23,12 @@
  * Implement a simple klog source.  This consumes messages
  * and add timestamping, logging level, etc.
  */
+
+struct logd_source_klog {
+	int fd;
+	char *path;
+	int is_readonly;
+};
 
 /*
  * Parse the facility field of a klog/syslog message.
@@ -156,29 +163,76 @@ logd_source_klog_error_cb(struct logd_source *ls, void *arg, int error)
 }
 
 static int
-logd_source_klog_close_cb(struct logd_source *ls, void *arG)
+logd_source_klog_free_cb(struct logd_source *ls, void *arg)
 {
+	struct logd_source_klog *kl = arg;
 
 	fprintf(stderr, "%s: called\n", __func__);
 	/* Do teardown */
+
+	free(kl->path);
 	return (0);
 }
 
+static int
+logd_source_klog_open_cb(struct logd_source *ls, void *arg)
+{
+	struct logd_source_klog *kl = arg;
+	int fd;
+
+	fprintf(stderr, "%s: called\n", __func__);
+
+	fd = open(kl->path, O_RDONLY);
+	if (fd == -1) {
+		warn("%s: open(%s)", __func__, kl->path);
+		return (-1);
+	}
+
+	/* XXX should be a method */
+	ls->fd = fd;
+
+	return (0);
+}
+
+static int
+logd_source_klog_close_cb(struct logd_source *ls, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	/* Note: for now, main class calls close() */
+	return (0);
+}
+
+
 struct logd_source *
-logd_source_klog_create(int fd, struct event_base *eb)
+logd_source_klog_create_read_dev(struct event_base *eb,
+    const char *path)
 {
 	struct logd_source *ls;
+	struct logd_source_klog *kl;
 
-	ls = logd_source_create(fd, eb);
-	if (ls == NULL)
+	kl = calloc(1, sizeof(*kl));
+	if (kl == NULL) {
+		warn("%s: calloc", __func__);
 		return (NULL);
+	}
+
+	ls = logd_source_create(eb);
+	if (ls == NULL) {
+		free(kl);
+		return (NULL);
+	}
 
 	/* Do other setup */
 	logd_source_set_child_callbacks(ls,
 	    logd_source_klog_read_cb,
 	    logd_source_klog_error_cb,
+	    logd_source_klog_free_cb,
+	    logd_source_klog_open_cb,
 	    logd_source_klog_close_cb,
-	    NULL);
+	    kl);
+
+	kl->path = strdup(path);
 
 	return (ls);
 }

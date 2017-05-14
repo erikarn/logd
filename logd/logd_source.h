@@ -8,7 +8,10 @@ typedef int logd_source_free_cb(struct logd_source *, void *);
 
 typedef int logd_source_logmsg_read_cb(struct logd_source *, void *,
 	    struct logd_msg *m);
+
 typedef int logd_source_error_cb(struct logd_source *, void *, int);
+typedef int logd_source_open_cb(struct logd_source *, void *);
+typedef int logd_source_close_cb(struct logd_source *, void *);
 
 #define	LOGD_SOURCE_ERROR_READ_EOF		1
 #define	LOGD_SOURCE_ERROR_READ_FULL		2
@@ -39,6 +42,8 @@ struct logd_source {
 		logd_source_read_cb *cb_read;
 		logd_source_error_cb *cb_error;
 		logd_source_free_cb *cb_free;
+		logd_source_free_cb *cb_open;
+		logd_source_free_cb *cb_close;
 		void *cbdata;
 	} child_cb;
 
@@ -59,25 +64,70 @@ struct logd_source {
 	struct logd_buf rbuf;
 };
 
-extern	struct logd_source * logd_source_create(int fd, struct event_base *eb);
+/*
+ * Global methods
+ */
+extern	struct logd_source * logd_source_create(struct event_base *eb);
 extern	void	logd_source_free(struct logd_source *lsrc);
 
-extern	void logd_source_set_child_callbacks(struct logd_source *ls,
-	    logd_source_read_cb *cb_read,
-	    logd_source_error_cb *cb_error,
-	    logd_source_free_cb *cb_free,
-	    void *cbdata);
-
+/*
+ * Attach the owner callbacks.
+ */
 extern	void logd_source_set_owner_callbacks(struct logd_source *ls,
 	    logd_source_logmsg_read_cb *cb_logmsg_read,
 	    logd_source_error_cb *cb_error,
 	    void *cbdata);
 
+/*
+ * Child related methods.
+ */
+
+/*
+ * Attach the child methods.
+ */
+extern	void logd_source_set_child_callbacks(struct logd_source *ls,
+	    logd_source_read_cb *cb_read,
+	    logd_source_error_cb *cb_error,
+	    logd_source_free_cb *cb_free,
+	    logd_source_open_cb *cb_open,
+	    logd_source_close_cb *cb_close,
+	    void *cbdata);
+
+/*
+ * Start reading from the end-point.
+ */
 extern	void logd_source_read_start(struct logd_source *ls);
+
+/*
+ * Stop reading from the end-point.
+ */
 extern	void logd_source_read_stop(struct logd_source *ls);
+
+/*
+ * Called from the child to push a parsed message to the owner.
+ */
 extern	int logd_source_add_read_msg(struct logd_source *ls,
 	    struct logd_msg *m);
 
+/*
+ * Open the configured end-point (file, socket, etc).
+ */
+extern	int logd_source_open(struct logd_source *ls);
+
+/*
+ * Close the configured end-point (file, socket, etc.)
+ */
+extern	int logd_source_close(struct logd_source *ls);
+
+/*
+ * Flush pending items to the end-point.
+ */
+extern	int logd_source_flush(struct logd_source *ls);
+
+
+/*
+ * Global setup/teardown.
+ */
 extern	void logd_source_init(void);
 extern	void logd_source_shutdown(void);
 

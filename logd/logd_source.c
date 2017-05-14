@@ -71,6 +71,10 @@ logd_source_read_error(struct logd_source *ls, int errcode, int xerror)
 void
 logd_source_read_start(struct logd_source *ls)
 {
+	if (ls->fd == -1) {
+		fprintf(stderr, "%s: called whilst it's closed\n", __func__);
+		return;
+	}
 
 	event_add(ls->read_ev, NULL);
 }
@@ -81,6 +85,10 @@ logd_source_read_start(struct logd_source *ls)
 void
 logd_source_read_stop(struct logd_source *ls)
 {
+	if (ls->fd == -1) {
+		fprintf(stderr, "%s: called whilst it's closed\n", __func__);
+		return;
+	}
 
 	event_del(ls->read_ev);
 }
@@ -195,7 +203,7 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 }
 
 struct logd_source *
-logd_source_create(int fd, struct event_base *eb)
+logd_source_create(struct event_base *eb)
 {
 	struct logd_source *ls;
 
@@ -217,17 +225,10 @@ logd_source_create(int fd, struct event_base *eb)
 	ls->rbuf.size = 1024;
 
 	/* Rest of the state */
-	ls->fd = fd;
+	ls->fd = -1;
 	ls->eb = eb;
 
-	/* libevent setup */
-	ls->read_ev = event_new(ls->eb, ls->fd, EV_READ | EV_PERSIST,
-	    logd_source_read_evcb, ls);
-
 	TAILQ_INIT(&ls->read_msgs);
-
-	/* Start reading - maybe this should be a method */
-	event_add(ls->read_ev, NULL);
 
 	return (ls);
 }
@@ -235,6 +236,11 @@ logd_source_create(int fd, struct event_base *eb)
 void
 logd_source_free(struct logd_source *ls)
 {
+
+	/* Call close() if it hasn't been called yet */
+	if (ls->fd == -1) {
+		logd_source_close(ls);
+	}
 
 	/* Tell the child we're going away */
 	if (ls->child_cb.cb_free != NULL) {
@@ -246,10 +252,6 @@ logd_source_free(struct logd_source *ls)
 	/* Iterate through, free queued sources */
 	logd_source_flush_read_msgs(ls);
 
-	/* libevent teardown */
-	event_del(ls->read_ev);
-	event_free(ls->read_ev);
-
 	free(ls);
 }
 
@@ -258,12 +260,16 @@ logd_source_set_child_callbacks(struct logd_source *ls,
     logd_source_read_cb *cb_read,
     logd_source_error_cb *cb_error,
     logd_source_free_cb *cb_free,
+    logd_source_open_cb *cb_open,
+    logd_source_close_cb *cb_close,
     void *cbdata)
 {
 
 	ls->child_cb.cb_read = cb_read;
 	ls->child_cb.cb_error = cb_error;
 	ls->child_cb.cb_free = cb_free;
+	ls->child_cb.cb_open = cb_open;
+	ls->child_cb.cb_close = cb_close;
 	ls->child_cb.cbdata = cbdata;
 }
 
@@ -287,4 +293,50 @@ logd_source_init(void)
 void
 logd_source_shutdown(void)
 {
+}
+
+int
+logd_source_open(struct logd_source *ls)
+{
+	int ret;
+
+	/*
+	 * Initial setup - this will allocate a filedescriptor
+	 * as appropriate.
+	 */
+	ret = ls->child_cb.cb_open(ls, ls->child_cb.cbdata);
+	if (ret != 0)
+		return (ret);
+
+	/*
+	 * Create IO events now that the FD is ready.
+	 */
+	ls->read_ev = event_new(ls->eb, ls->fd, EV_READ | EV_PERSIST,
+	    logd_source_read_evcb, ls);
+
+	/* Start reading - maybe this should be a method */
+	event_add(ls->read_ev, NULL);
+
+	return (0);
+}
+
+int
+logd_source_close(struct logd_source *ls)
+{
+
+	/* XXX flush */
+
+	/* Close the IO events */
+	if (ls->read_ev != NULL) {
+		event_del(ls->read_ev);
+		event_free(ls->read_ev);
+	}
+
+	/* And the filedescriptor */
+	if (ls->fd != -1) {
+		close(ls->fd);
+		ls->fd = -1;
+	}
+
+	return (ls->child_cb.cb_close(ls, ls->child_cb.cbdata));
 }
