@@ -49,6 +49,9 @@ void
 logd_msg_free(struct logd_msg *lm)
 {
 
+	if (lm->msg_src_name != NULL)
+		free(lm->msg_src_name);
+
 	logd_buf_done(&lm->buf);
 	free(lm);
 }
@@ -111,11 +114,23 @@ logd_msg_get_syslog_priority(struct logd_msg *m)
 	return ("unknown");
 }
 
+/*
+ * This is the daemon/process name, not the source
+ * host name.  Yes, I may want to change that later.
+ */
+static const char *
+logd_msg_get_src_name(struct logd_msg *m)
+{
+	if (m->msg_src_name == NULL)
+		return ("unknown");
+	return (m->msg_src_name);
+}
+
 int
 logd_msg_print(FILE *fp, struct logd_msg *m)
 {
 
-	fprintf(fp, "%s: called; m=%p; (%d) (%d:%s/%d:%s) msg=%.*s\n",
+	fprintf(fp, "%s: called; m=%p; (%d) (%d:%s/%d:%s) (%s) msg=%.*s\n",
 	    __func__,
 	    m,
 	    m->msg_orig_prifac,
@@ -123,8 +138,25 @@ logd_msg_print(FILE *fp, struct logd_msg *m)
 	    logd_msg_get_syslog_facility(m),
 	    m->msg_priority,
 	    logd_msg_get_syslog_priority(m),
+	    logd_msg_get_src_name(m),
 	    logd_buf_get_len(&m->buf),
 	    logd_buf_get_buf(&m->buf));
+
+	return (0);
+}
+
+int
+logd_msg_set_src_name(struct logd_msg *lm, const char *str, int len)
+{
+
+	if (lm->msg_src_name != NULL)
+		free(lm->msg_src_name);
+
+	lm->msg_src_name = strndup(str, len);
+	if (lm->msg_src_name == NULL) {
+		warn("%s: strndup(%d)", __func__, len);
+		return (-1);
+	}
 
 	return (0);
 }
