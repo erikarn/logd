@@ -7,6 +7,7 @@
 #include <string.h>
 #include <err.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -97,7 +98,93 @@ logd_source_klog_parse_facility(struct logd_msg *m)
 	logd_buf_consume(&m->buf, NULL, len);
 
 	/* Return the number of bytes consumed */
+	/* XXX TODO: this is actually also really wrong, haven't updated len */
 	return (len);
+}
+
+/*
+ * Attempt to parse a date and process name from the "normal" BSD
+ * formatted syslog message.
+ *
+ * syslogd.c will attempt to do parse things:
+ *
+ * + is the first 16 characters (MAXDATELEN) matches (badly) a timestamp
+ *   format;
+ * + then it trims whitespace
+ * + then it looks for :, [, /, or ' ' as the process name delimiter;
+ * + .. and that's the end of the program name.
+ *
+ * For now, don't modify the log message - just parse out the timestamp
+ * and process name for logging.
+ *
+ * Returns 0 if it didn't parse anything out, > 0 for how many characters
+ * in the beginning of the string that contained the timestamp + process name.
+ *
+ * XXX TODO:
+ * + everything in this routine needs refactoring
+ * + all the string/buffer stuff should be turned into logd_buf APIs
+ * + return values are all wrong
+ */
+static int
+logd_source_klog_parse_timestamp_procname(struct logd_msg *m)
+{
+#define	MAXDATELEN	16
+#define	NAME_MAX	255
+	int len = 0;
+	int found_date = 0;
+	const char *msg;
+	int msglen;
+	int i, j;
+
+	msg = logd_buf_get_buf(&m->buf);
+	msglen = logd_buf_get_len(&m->buf);
+
+	/* Look for a date, syslog style */
+	if (msglen < MAXDATELEN)
+		return (0);
+
+	found_date = 1;
+	if (msg[3] != ' ' || msg[6] != ' ' ||
+	    msg[9] != ':' || msg[12] != ':' || msg[15] != ' ') {
+		found_date = 0;
+	}
+
+	/* If we found a date, skip over it */
+	if (found_date == 1) {
+		msg += MAXDATELEN;
+		msglen -= MAXDATELEN;
+	}
+
+	/* skip leading blanks */
+	while (isspace(*msg) && msglen < 0) {
+		msg++;
+		msglen--;
+	}
+
+	/* XXX TODO incorrect return value - should just be the date parsed */
+	if (msglen == 0) {
+		return (0);
+	}
+
+	/* Look for a programname in the string */
+	for (i = 0; i < NAME_MAX; i++) {
+		if (!isprint(msg[i]) || msg[i] == ':' || msg[i] == '[' ||
+		    msg[i] == '/' || isspace(msg[i]))
+			break;
+	}
+
+	/* If we hit the limit, don't copy */
+	/* XXX TODO incorrect return value - should just be the date parsed */
+	if (i == NAME_MAX) {
+		return (0);
+	}
+
+	/* Ok, msg[0] -> msg[i] is the string */
+	logd_msg_set_src_name(m, msg, i);
+
+	return (len);
+#undef	NAME_MAX
+#undef	MAXDATELEN
 }
 
 /*
@@ -152,6 +239,9 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 		/* Parse the facility out */
 		logd_source_klog_parse_facility(m);
 
+		/* Logfile, procname */
+		logd_source_klog_parse_timestamp_procname(m);
+
 		/* Add the message to the source */
 		if (logd_source_add_read_msg(ls, m) < 0) {
 			/*
@@ -205,6 +295,9 @@ logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
 
 	/* Parse the facility out */
 	logd_source_klog_parse_facility(m);
+
+	/* Logfile, procname */
+	logd_source_klog_parse_timestamp_procname(m);
 
 	/* Add the message to the source */
 	if (logd_source_add_read_msg(ls, m) < 0) {
