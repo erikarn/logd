@@ -163,8 +163,10 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 		return;
 	}
 
+#if 0
 	fprintf(stderr, "%s: called; r=%d; rbuf.len=%d\n", __func__, r,
 	    logd_buf_get_len(&ls->rbuf));
+#endif
 
 	/*
 	 * Loop over until we run out of data or error.
