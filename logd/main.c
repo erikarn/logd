@@ -23,7 +23,9 @@
 #include "logd_buf.h"
 #include "logd_msg.h"
 #include "logd_source.h"
+#include "logd_source_list.h"
 #include "logd_source_klog.h"
+#include "logd_sink_file.h"
 
 static void
 usage(void)
@@ -66,6 +68,12 @@ main(int argc, char *argv[])
 
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		fprintf(stderr, "madvise() failed: %s\n", strerror(errno));
+
+	/* Module init */
+	logd_source_init();
+	logd_source_klog_init();
+	logd_sink_file_init();
+	logd_source_list_init();
 
 	logd_app_init(&la);
 	fprintf(stderr, "%s: starting\n", argv[0]);
