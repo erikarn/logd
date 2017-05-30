@@ -12,6 +12,10 @@ typedef int logd_source_logmsg_read_cb(struct logd_source *, void *,
 typedef int logd_source_error_cb(struct logd_source *, void *, int);
 typedef int logd_source_open_cb(struct logd_source *, void *);
 typedef int logd_source_close_cb(struct logd_source *, void *);
+typedef int logd_source_sync_cb(struct logd_source *, void *);
+typedef int logd_source_reopen_cb(struct logd_source *, void *);
+typedef int logd_source_write_cb(struct logd_source *, void *);
+typedef int logd_source_flush_cb(struct logd_source *, void *);
 
 #define	LOGD_SOURCE_ERROR_READ_EOF		1
 #define	LOGD_SOURCE_ERROR_READ_FULL		2
@@ -30,7 +34,7 @@ struct logd_source {
 	TAILQ_HEAD(, logd_msg) read_msgs;
 #endif
 
-#if 0
+#if 1
 	/*
 	 * List of messages that we've been asked to send.
 	 */
@@ -40,10 +44,14 @@ struct logd_source {
 	/* Callbacks - us to child */
 	struct {
 		logd_source_read_cb *cb_read;
+		logd_source_write_cb *cb_write;
 		logd_source_error_cb *cb_error;
 		logd_source_free_cb *cb_free;
-		logd_source_free_cb *cb_open;
-		logd_source_free_cb *cb_close;
+		logd_source_open_cb *cb_open;
+		logd_source_close_cb *cb_close;
+		logd_source_sync_cb *cb_sync;
+		logd_source_reopen_cb *cb_reopen;
+		logd_source_flush_cb *cb_flush;
 		void *cbdata;
 	} child_cb;
 
@@ -87,10 +95,14 @@ extern	void logd_source_set_owner_callbacks(struct logd_source *ls,
  */
 extern	void logd_source_set_child_callbacks(struct logd_source *ls,
 	    logd_source_read_cb *cb_read,
+	    logd_source_write_cb *cb_write,
 	    logd_source_error_cb *cb_error,
 	    logd_source_free_cb *cb_free,
 	    logd_source_open_cb *cb_open,
 	    logd_source_close_cb *cb_close,
+	    logd_source_sync_cb *cb_sync,
+	    logd_source_reopen_cb *cb_reopen,
+	    logd_source_flush_cb *cb_flush,
 	    void *cbdata);
 
 /*
@@ -120,10 +132,24 @@ extern	int logd_source_open(struct logd_source *ls);
 extern	int logd_source_close(struct logd_source *ls);
 
 /*
- * Flush pending items to the end-point.
+ * Sync pending items to/from the end-point (eg disk sync.)
+ */
+extern	int logd_source_sync(struct logd_source *ls);
+
+/*
+ * Flush (remove) pending items to/from the end-point.
  */
 extern	int logd_source_flush(struct logd_source *ls);
 
+/*
+ * Write a message.
+ */
+extern	int logd_source_write(struct logd_source *ls, struct logd_msg *m);
+
+/*
+ * Re-open the end-point.
+ */
+extern	int logd_source_reopen(struct logd_source *ls);
 
 /*
  * Global setup/teardown.

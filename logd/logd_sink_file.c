@@ -116,6 +116,37 @@ logd_sink_file_close_cb(struct logd_source *ls, void *arg)
 	return (0);
 }
 
+static int
+logd_sink_file_write_cb(struct logd_source *ls, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
+
+static int
+logd_sink_file_reopen_cb(struct logd_source *ls, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
+
+static int
+logd_sink_file_sync_cb(struct logd_source *ls, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
+
+static int
+logd_sink_file_flush_cb(struct logd_source *ls, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
 
 struct logd_source *
 logd_sink_file_create_file(struct event_base *eb,
@@ -139,10 +170,14 @@ logd_sink_file_create_file(struct event_base *eb,
 	/* Do other setup */
 	logd_source_set_child_callbacks(ls,
 	    logd_sink_file_read_cb,
+	    logd_sink_file_write_cb,
 	    logd_sink_file_error_cb,
 	    logd_sink_file_free_cb,
 	    logd_sink_file_open_cb,
 	    logd_sink_file_close_cb,
+	    logd_sink_file_sync_cb,
+	    logd_sink_file_reopen_cb,
+	    logd_sink_file_flush_cb,
 	    kl);
 
 	kl->path = strdup(path);

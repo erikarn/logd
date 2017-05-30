@@ -42,6 +42,21 @@ logd_source_flush_read_msgs(struct logd_source *ls)
 	return (ret);
 }
 
+/* XXX TODO: unify/abstract with above */
+static int
+logd_source_flush_write_msgs(struct logd_source *ls)
+{
+	int ret = 0;
+	struct logd_msg *m;
+
+	while ((m = TAILQ_FIRST(&ls->write_msgs)) != NULL) {
+		TAILQ_REMOVE(&ls->write_msgs, m, node);
+		logd_msg_free(m);
+	}
+
+	return (ret);
+}
+
 int
 logd_source_add_read_msg(struct logd_source *ls, struct logd_msg *m)
 {
@@ -231,6 +246,7 @@ logd_source_create(struct event_base *eb)
 	ls->eb = eb;
 
 	TAILQ_INIT(&ls->read_msgs);
+	TAILQ_INIT(&ls->write_msgs);
 
 	return (ls);
 }
@@ -253,6 +269,7 @@ logd_source_free(struct logd_source *ls)
 
 	/* Iterate through, free queued sources */
 	logd_source_flush_read_msgs(ls);
+	logd_source_flush_write_msgs(ls);
 
 	free(ls);
 }
@@ -260,18 +277,26 @@ logd_source_free(struct logd_source *ls)
 void
 logd_source_set_child_callbacks(struct logd_source *ls,
     logd_source_read_cb *cb_read,
+    logd_source_write_cb *cb_write,
     logd_source_error_cb *cb_error,
     logd_source_free_cb *cb_free,
     logd_source_open_cb *cb_open,
     logd_source_close_cb *cb_close,
+    logd_source_sync_cb *cb_sync,
+    logd_source_reopen_cb *cb_reopen,
+    logd_source_flush_cb *cb_flush,
     void *cbdata)
 {
 
 	ls->child_cb.cb_read = cb_read;
+	ls->child_cb.cb_write = cb_write;
 	ls->child_cb.cb_error = cb_error;
 	ls->child_cb.cb_free = cb_free;
 	ls->child_cb.cb_open = cb_open;
 	ls->child_cb.cb_close = cb_close;
+	ls->child_cb.cb_reopen = cb_reopen;
+	ls->child_cb.cb_sync = cb_sync;
+	ls->child_cb.cb_flush = cb_flush;
 	ls->child_cb.cbdata = cbdata;
 }
 
@@ -326,7 +351,9 @@ int
 logd_source_close(struct logd_source *ls)
 {
 
-	/* XXX flush */
+	/* XXX flush read events? */
+
+	/* XXX flush write events? */
 
 	/* Close the IO events */
 	if (ls->read_ev != NULL) {
@@ -341,4 +368,43 @@ logd_source_close(struct logd_source *ls)
 	}
 
 	return (ls->child_cb.cb_close(ls, ls->child_cb.cbdata));
+}
+
+int
+logd_source_reopen(struct logd_source *ls)
+{
+
+	return (ls->child_cb.cb_reopen(ls, ls->child_cb.cbdata));
+}
+
+/*
+ * Write to the destination log source.
+ *
+ * This adds it to the queue and calls the child method to start
+ * writing.
+ *
+ * TODO: rate limiting, maximum queue depth, etc is a later thing.
+ */
+int
+logd_source_write(struct logd_source *ls, struct logd_msg *m)
+{
+
+	TAILQ_INSERT_TAIL(&ls->write_msgs, m, node);
+
+	return (ls->child_cb.cb_write(ls, ls->child_cb.cbdata));
+}
+
+int
+logd_source_sync(struct logd_source *ls)
+{
+
+	return (ls->child_cb.cb_flush(ls, ls->child_cb.cbdata));
+}
+
+int
+logd_source_flush(struct logd_source *ls)
+{
+
+	/* XXX TODO: flush read/write */
+	return (ls->child_cb.cb_flush(ls, ls->child_cb.cbdata));
 }

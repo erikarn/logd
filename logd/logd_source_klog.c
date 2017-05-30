@@ -418,6 +418,37 @@ logd_source_klog_close_cb(struct logd_source *ls, void *arg)
 	return (0);
 }
 
+static int
+logd_source_klog_write_cb(struct logd_source *l, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
+
+static int
+logd_source_klog_reopen_cb(struct logd_source *l, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
+
+static int
+logd_source_klog_sync_cb(struct logd_source *l, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
+
+static int
+logd_source_klog_flush_cb(struct logd_source *l, void *arg)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+	return (-1);
+}
 
 struct logd_source *
 logd_source_klog_create_read_dev(struct event_base *eb,
@@ -441,10 +472,14 @@ logd_source_klog_create_read_dev(struct event_base *eb,
 	/* Do other setup */
 	logd_source_set_child_callbacks(ls,
 	    logd_source_klog_read_cb,
+	    logd_source_klog_write_cb,
 	    logd_source_klog_error_cb,
 	    logd_source_klog_free_cb,
 	    logd_source_klog_open_cb,
 	    logd_source_klog_close_cb,
+	    logd_source_klog_sync_cb,
+	    logd_source_klog_reopen_cb,
+	    logd_source_klog_flush_cb,
 	    kl);
 
 	kl->path = strdup(path);
@@ -476,10 +511,14 @@ logd_source_klog_create_unix_fifo(struct event_base *eb,
 	/* Do other setup */
 	logd_source_set_child_callbacks(ls,
 	    logd_source_klog_read_dgram_cb,
+	    logd_source_klog_write_cb,
 	    logd_source_klog_error_cb,
 	    logd_source_klog_free_cb,
 	    logd_source_klog_open_cb,
 	    logd_source_klog_close_cb,
+	    logd_source_klog_sync_cb,
+	    logd_source_klog_reopen_cb,
+	    logd_source_klog_flush_cb,
 	    kl);
 
 	kl->path = strdup(path);
