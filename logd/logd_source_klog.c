@@ -89,7 +89,9 @@ logd_source_klog_parse_facility(struct logd_msg *m)
 	if (b == e)
 		return (0);
 
+#if 0
 	fprintf(stderr, "%s: parsed %d (len %d)\n", __func__, i, len);
+#endif
 
 	m->msg_orig_prifac = i;
 	m->msg_priority = i & 0x7;
@@ -203,7 +205,7 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 	const char *p, *q;
 	int l, ret = 0;
 
-	fprintf(stderr, "%s: called\n", __func__);
+	//fprintf(stderr, "%s: called\n", __func__);
 
 	while (logd_buf_get_len(&ls->rbuf) != 0) {
 		/* start of line */
@@ -271,7 +273,7 @@ logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
 	const char *p, *q;
 	int l, ret = 0;
 
-	fprintf(stderr, "%s: called\n", __func__);
+	//fprintf(stderr, "%s: called\n", __func__);
 
 	if (logd_buf_get_len(&ls->rbuf) == 0) {
 		return (0);
