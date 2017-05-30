@@ -2,6 +2,7 @@ PROG=	logd
 SRCS=	logd_app.c main.c wait.c
 SRCS+=	logd_source.c
 SRCS+=	logd_source_klog.c
+SRCS+=	logd_sink_file.c
 SRCS+=	logd_msg.c
 SRCS+=	logd_buf.c
 
