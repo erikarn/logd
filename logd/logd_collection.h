@@ -26,4 +26,10 @@ struct logd_collection {
 	} owner_cb;
 };
 
+extern	struct logd_collection * logd_collection_create(void);
+extern	void logd_collection_free(struct logd_collection *);
+
+extern	struct logd_collection_entry * logd_collection_add(struct logd_collection *,
+	    struct logd_source *);
+
 #endif	/* __LOGD_COLLECTION_H__ */
