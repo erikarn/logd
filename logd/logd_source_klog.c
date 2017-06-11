@@ -57,7 +57,7 @@ logd_source_klog_parse_facility(struct logd_msg *m)
 	char numbuf[16];
 	const char *b, *n;
 	char *e;
-	int i, f, len;
+	int i, len;
 
 	if (logd_buf_get_len(&m->buf) < 2)
 		return (0);
@@ -136,7 +136,7 @@ logd_source_klog_parse_timestamp_procname(struct logd_msg *m)
 	int found_date = 0;
 	const char *msg;
 	int msglen;
-	int i, j;
+	int i;
 
 	msg = logd_buf_get_buf(&m->buf);
 	msglen = logd_buf_get_len(&m->buf);
@@ -270,8 +270,8 @@ static int
 logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
 {
 	struct logd_msg *m;
-	const char *p, *q;
-	int l, ret = 0;
+	const char *p;
+	int l;
 
 	//fprintf(stderr, "%s: called\n", __func__);
 
