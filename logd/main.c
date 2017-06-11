@@ -24,6 +24,7 @@
 #include "logd_msg.h"
 #include "logd_source.h"
 #include "logd_source_klog.h"
+#include "logd_sink_file.h"
 #include "logd_collection.h"
 
 static void
@@ -103,6 +104,11 @@ main(int argc, char *argv[])
 
 	/* /var/run/logpriv - root only rw */
 	ls = logd_source_klog_create_unix_fifo(la.eb, "/var/run/logpriv");
+	logd_collection_add(lc, ls);
+	logd_source_open(ls);
+
+	/* /tmp/log.txt - write/append output file */
+	ls = logd_sink_file_create_file(la.eb, "/tmp/log.txt");
 	logd_collection_add(lc, ls);
 	logd_source_open(ls);
 
