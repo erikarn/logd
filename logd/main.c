@@ -24,6 +24,7 @@
 #include "logd_msg.h"
 #include "logd_source.h"
 #include "logd_source_klog.h"
+#include "logd_collection.h"
 
 static void
 usage(void)
@@ -63,6 +64,7 @@ main(int argc, char *argv[])
 	/* XXX temp */
 	int fd;
 	struct logd_source *ls;
+	struct logd_collection *lc;
 
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		fprintf(stderr, "madvise() failed: %s\n", strerror(errno));
@@ -105,23 +107,21 @@ main(int argc, char *argv[])
 	}
 
 	/* Need to actually do some work here .. */
+	lc = logd_collection_create();
 
 	/* /dev/klog; only read from it */
 	ls = logd_source_klog_create_read_dev(la.eb, "/dev/klog");
-	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
-	    test_logmsg_err_cb, NULL);
+	logd_collection_add(lc, ls);
 	logd_source_open(ls);
 
 	/* /var/run/log - global rw */
 	ls = logd_source_klog_create_unix_fifo(la.eb, "/var/run/log");
-	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
-	    test_logmsg_err_cb, NULL);
+	logd_collection_add(lc, ls);
 	logd_source_open(ls);
 
 	/* /var/run/logpriv - root only rw */
 	ls = logd_source_klog_create_unix_fifo(la.eb, "/var/run/logpriv");
-	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
-	    test_logmsg_err_cb, NULL);
+	logd_collection_add(lc, ls);
 	logd_source_open(ls);
 
 	logd_app_run(&la);

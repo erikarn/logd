@@ -75,7 +75,7 @@ logd_collection_source_err_cb(struct logd_source *ls, void *arg, int err)
 
 
 struct logd_collection_entry *
-logd_collection_entry_add(struct logd_collection *lc, struct logd_source *ls)
+logd_collection_add(struct logd_collection *lc, struct logd_source *ls)
 {
 	struct logd_collection_entry *le;
 
