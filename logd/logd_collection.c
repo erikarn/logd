@@ -72,7 +72,7 @@ logd_collection_source_read_cb(struct logd_source *ls, void *arg,
 	TAILQ_FOREACH_SAFE(ln, &lc->entries, node, lnn) {
 		struct logd_msg *mn;
 		/* Don't send to self */
-		if (lnn->src == ls)
+		if (ln->src == ls)
 			continue;
 
 		/* XXX TODO: call filter method */
