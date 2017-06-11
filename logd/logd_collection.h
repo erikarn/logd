@@ -12,8 +12,8 @@ typedef	int logd_collection_filter_cb_t(struct logd_collection *, void *,
 struct logd_collection_entry {
 	struct logd_collection *parent;
 	struct logd_filter *filt;
+	struct logd_source *src;
 	TAILQ_ENTRY(logd_collection_entry) node;
-	TAILQ_HEAD(, logd_source) src;
 };
 
 struct logd_collection {
