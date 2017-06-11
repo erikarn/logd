@@ -1,7 +1,7 @@
 #ifndef	__LOGD_UTIL_H__
 #define	__LOGD_UTIL_H__
 
-static int
+static inline int
 errno_sockio_fatal(int x)
 {
 	switch (x) {
