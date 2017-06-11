@@ -37,23 +37,6 @@ usage(void)
 	exit(127);
 }
 
-/* XXX testing */
-static int
-test_logmsg_read_cb(struct logd_source *ls, void *arg, struct logd_msg *m)
-{
-	logd_msg_print(stderr, m);
-
-	return (0);
-}
-
-static int
-test_logmsg_err_cb(struct logd_source *ls, void *arg, int err)
-{
-
-	fprintf(stderr, "%s: called; err=%d\n", __func__, err);
-	return (0);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -62,7 +45,6 @@ main(int argc, char *argv[])
 	int opt;
 
 	/* XXX temp */
-	int fd;
 	struct logd_source *ls;
 	struct logd_collection *lc;
 
