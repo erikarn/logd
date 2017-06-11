@@ -55,6 +55,25 @@ logd_collection_entry_alloc(void)
 	return (le);
 }
 
+static int
+logd_collection_source_read_cb(struct logd_source *ls, void *arg,
+    struct logd_msg *m)
+{
+
+	logd_msg_print(stderr, m);
+	logd_msg_free(m);
+	return (0);
+}
+
+static int
+logd_collection_source_err_cb(struct logd_source *ls, void *arg, int err)
+{
+
+	fprintf(stderr, "%s: called; err=%d\n", __func__, err);
+	return (0);
+}
+
+
 struct logd_collection_entry *
 logd_collection_entry_add(struct logd_collection *lc, struct logd_source *ls)
 {
@@ -66,10 +85,13 @@ logd_collection_entry_add(struct logd_collection *lc, struct logd_source *ls)
 	}
 
 	le->parent = lc;
+	/* TBD: no filter for now */
 	le->filt = NULL;
 	le->src = ls;
 
 	/* Now we're the owner, so channel reads/writes to us */
+	logd_source_set_owner_callbacks(ls, logd_collection_source_read_cb,
+	    logd_collection_source_err_cb, le);
 
 	TAILQ_INSERT_TAIL(&lc->entries, le, node);
 
