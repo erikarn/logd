@@ -12,7 +12,7 @@ SRCS+=	logd_collection.c
 #CFLAGS=	-I/usr/include/private
 #LDADD=	-lutil -lprivateevent
 
-CFLAGS=		-I/usr/local/include
+CFLAGS=		-I/usr/local/include -Wall -Werror
 LDADD=-lutil -L/usr/local/lib -levent_core
 
 MK_MAN=no

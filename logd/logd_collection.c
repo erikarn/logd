@@ -59,8 +59,39 @@ static int
 logd_collection_source_read_cb(struct logd_source *ls, void *arg,
     struct logd_msg *m)
 {
+	struct logd_collection_entry *le = arg;
+	struct logd_collection *lc = le->parent;
+	struct logd_collection_entry *ln, *lnn;
 
 	logd_msg_print(stderr, m);
+
+	/*
+	 * Walk the collection list, and call the filter routine on each
+	 * to see if we should send this to others.
+	 */
+	TAILQ_FOREACH_SAFE(ln, &lc->entries, node, lnn) {
+		struct logd_msg *mn;
+		/* Don't send to self */
+		if (lnn->src == ls)
+			continue;
+
+		/* XXX TODO: call filter method */
+
+		/* Ok, relaying - call xmit method */
+		mn = logd_msg_dup(m);
+		/* XXX TODO: counter */
+		if (mn == NULL)
+			continue;
+		if (logd_source_write(ln->src, mn) < 0) {
+			/* XXX TODO: counter */
+			logd_msg_free(mn);
+			continue;
+		}
+	}
+
+	/*
+	 * And now we're done; free the original log message.
+	 */
 	logd_msg_free(m);
 	return (0);
 }
