@@ -160,3 +160,26 @@ logd_msg_set_src_name(struct logd_msg *lm, const char *str, int len)
 
 	return (0);
 }
+
+struct logd_msg *
+logd_msg_dup(const struct logd_msg *m)
+{
+	struct logd_msg *mn;
+
+	mn = logd_msg_create(m->buf.size);
+	if (mn == NULL) {
+		return (NULL);
+	}
+
+	/* Duplicate content */
+	logd_msg_set_str(mn, m->buf.buf, m->buf.len);
+	mn->ts_recv = m->ts_recv;
+	mn->ts_msg = m->ts_msg;
+	mn->msg_orig_prifac = m->msg_orig_prifac;
+	mn->msg_priority = m->msg_priority;
+	mn->msg_facility = m->msg_facility;
+	if (m->msg_src_name)
+		mn->msg_src_name = strdup(m->msg_src_name);
+
+	return (mn);
+}

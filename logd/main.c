@@ -26,6 +26,7 @@
 #include "logd_source_list.h"
 #include "logd_source_klog.h"
 #include "logd_sink_file.h"
+#include "logd_collection.h"
 
 static void
 usage(void)
@@ -38,23 +39,6 @@ usage(void)
 	exit(127);
 }
 
-/* XXX testing */
-static int
-test_logmsg_read_cb(struct logd_source *ls, void *arg, struct logd_msg *m)
-{
-	logd_msg_print(stderr, m);
-
-	return (0);
-}
-
-static int
-test_logmsg_err_cb(struct logd_source *ls, void *arg, int err)
-{
-
-	fprintf(stderr, "%s: called; err=%d\n", __func__, err);
-	return (0);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -63,8 +47,8 @@ main(int argc, char *argv[])
 	int opt;
 
 	/* XXX temp */
-	int fd;
 	struct logd_source *ls;
+	struct logd_collection *lc;
 
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		fprintf(stderr, "madvise() failed: %s\n", strerror(errno));
@@ -113,23 +97,26 @@ main(int argc, char *argv[])
 	}
 
 	/* Need to actually do some work here .. */
+	lc = logd_collection_create();
 
 	/* /dev/klog; only read from it */
 	ls = logd_source_klog_create_read_dev(la.eb, "/dev/klog");
-	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
-	    test_logmsg_err_cb, NULL);
+	logd_collection_add(lc, ls);
 	logd_source_open(ls);
 
 	/* /var/run/log - global rw */
 	ls = logd_source_klog_create_unix_fifo(la.eb, "/var/run/log");
-	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
-	    test_logmsg_err_cb, NULL);
+	logd_collection_add(lc, ls);
 	logd_source_open(ls);
 
 	/* /var/run/logpriv - root only rw */
 	ls = logd_source_klog_create_unix_fifo(la.eb, "/var/run/logpriv");
-	logd_source_set_owner_callbacks(ls, test_logmsg_read_cb,
-	    test_logmsg_err_cb, NULL);
+	logd_collection_add(lc, ls);
+	logd_source_open(ls);
+
+	/* /tmp/log.txt - write/append output file */
+	ls = logd_sink_file_create_file(la.eb, "/tmp/log.txt");
+	logd_collection_add(lc, ls);
 	logd_source_open(ls);
 
 	logd_app_run(&la);

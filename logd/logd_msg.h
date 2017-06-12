@@ -36,5 +36,6 @@ extern	void logd_set_timestamps(struct logd_msg *, struct timespec *tr,
 extern	int logd_msg_set_str(struct logd_msg *, const char *, int);
 extern	int logd_msg_print(FILE *fp, struct logd_msg *m);
 extern	int logd_msg_set_src_name(struct logd_msg *, const char *, int);
+extern	struct logd_msg * logd_msg_dup(const struct logd_msg *m);
 
 #endif	/* __LOGD_MSG_H__ */

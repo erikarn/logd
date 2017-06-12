@@ -350,7 +350,6 @@ logd_source_open(struct logd_source *ls)
 int
 logd_source_close(struct logd_source *ls)
 {
-	int ret;
 
 	/* XXX sync/flush read events? */
 
@@ -388,16 +387,11 @@ logd_source_reopen(struct logd_source *ls)
 /*
  * Write to the destination log source.
  *
- * This adds it to the queue and calls the child method to start
- * writing.
- *
  * TODO: rate limiting, maximum queue depth, etc is a later thing.
  */
 int
 logd_source_write(struct logd_source *ls, struct logd_msg *m)
 {
-
-	TAILQ_INSERT_TAIL(&ls->write_msgs, m, node);
 
 	return (ls->child_cb.cb_write(ls, ls->child_cb.cbdata));
 }
