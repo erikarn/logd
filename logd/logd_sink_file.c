@@ -109,6 +109,11 @@ logd_sink_file_close_cb(struct logd_source *ls, void *arg)
 	fprintf(stderr, "%s: called\n", __func__);
 
 	/* Note: for now, main class has called close() already */
+	if (kl->fd != -1) {
+		close(kl->fd);
+		/* XXX TODO method */
+		kl->fd = -1;
+	}
 
 	if (kl->do_unlink) {
 		unlink(kl->path);

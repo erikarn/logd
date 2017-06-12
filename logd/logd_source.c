@@ -350,22 +350,30 @@ logd_source_open(struct logd_source *ls)
 int
 logd_source_close(struct logd_source *ls)
 {
+	int ret;
 
-	/* XXX flush read events? */
+	/* XXX sync/flush read events? */
 
-	/* XXX flush write events? */
+	/* XXX sync write events? */
+
+	/*
+	 * We should close the IO events before we
+	 * close the FD.  Otherwise some backends may not
+	 * notice an FD was recycled and we end up with
+	 * some pretty terrible behaviour.
+	 */
 
 	/* Close the IO events */
 	if (ls->read_ev != NULL) {
 		event_del(ls->read_ev);
 		event_free(ls->read_ev);
 	}
-
-	/* And the filedescriptor */
-	if (ls->fd != -1) {
-		close(ls->fd);
-		ls->fd = -1;
+	if (ls->write_ev != NULL) {
+		event_del(ls->write_ev);
+		event_free(ls->write_ev);
 	}
+
+	/* Leave the closing to the child */
 
 	return (ls->child_cb.cb_close(ls, ls->child_cb.cbdata));
 }

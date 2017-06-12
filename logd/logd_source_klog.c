@@ -397,7 +397,7 @@ logd_source_klog_open_cb(struct logd_source *ls, void *arg)
 		return (-1);
 	}
 
-	/* XXX should be a method */
+	/* XXX TODO should be a method */
 	ls->fd = fd;
 
 	return (0);
@@ -410,7 +410,13 @@ logd_source_klog_close_cb(struct logd_source *ls, void *arg)
 
 	fprintf(stderr, "%s: called\n", __func__);
 
-	/* Note: for now, main class has called close() already */
+	/* XXX TODO: migrate the rest of the libevent handling here */
+
+	if (kl->fd != -1) {
+		close(kl->fd);
+		/* XXX TODO should be a method */
+		kl->fd = -1;
+	}
 
 	if (kl->do_unlink) {
 		unlink(kl->path);

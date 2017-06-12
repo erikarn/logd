@@ -64,6 +64,7 @@ struct logd_source {
 
 	struct event_base *eb;
 	struct event *read_ev;
+	struct event *write_ev;
 
 	/*
 	 * Incoming unstructured data (eg from a file, socket)
