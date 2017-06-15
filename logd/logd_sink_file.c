@@ -126,6 +126,8 @@ logd_sink_file_write_cb(struct logd_source *ls, void *arg)
 {
 
 	fprintf(stderr, "%s: called\n", __func__);
+
+	/* For now we just write the data to the logfile */
 	return (-1);
 }
 
