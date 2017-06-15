@@ -373,13 +373,15 @@ logd_source_close(struct logd_source *ls)
 	}
 
 	/* Leave the closing to the child */
-
 	return (ls->child_cb.cb_close(ls, ls->child_cb.cbdata));
 }
 
 int
 logd_source_reopen(struct logd_source *ls)
 {
+
+	if (ls->child_cb.cb_reopen == NULL)
+		return (-1);
 
 	return (ls->child_cb.cb_reopen(ls, ls->child_cb.cbdata));
 }
@@ -393,19 +395,26 @@ int
 logd_source_write(struct logd_source *ls, struct logd_msg *m)
 {
 
+	if (ls->child_cb.cb_write == NULL)
+		return (-1);
+
 	return (ls->child_cb.cb_write(ls, ls->child_cb.cbdata));
 }
 
 int
 logd_source_sync(struct logd_source *ls)
 {
+	if (ls->child_cb.cb_sync == NULL)
+		return (-1);
 
-	return (ls->child_cb.cb_flush(ls, ls->child_cb.cbdata));
+	return (ls->child_cb.cb_sync(ls, ls->child_cb.cbdata));
 }
 
 int
 logd_source_flush(struct logd_source *ls)
 {
+	if (ls->child_cb.cb_flush == NULL)
+		return (-1);
 
 	/* XXX TODO: flush read/write */
 	return (ls->child_cb.cb_flush(ls, ls->child_cb.cbdata));
