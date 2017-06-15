@@ -1,7 +1,9 @@
 #ifndef	__LOGD_BUF_H__
 #define	__LOGD_BUF_H__
 
+struct logd_buf;
 struct logd_buf {
+	TAILQ_ENTRY(logd_buf) node;
 	char *buf;
 	int size;
 	int len;
