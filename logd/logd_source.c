@@ -108,6 +108,23 @@ logd_source_read_stop(struct logd_source *ls)
 	event_del(ls->read_ev);
 }
 
+static void
+logd_source_send_up_readmsgs(struct logd_source *ls)
+{
+	struct logd_msg *m;
+
+	/*
+	 * XXX TODO: defer this?
+	 *
+	 * Whilst we have logd_msg entries, pass them up.
+	 */
+	while ((m = TAILQ_FIRST(&ls->read_msgs)) != NULL) {
+		TAILQ_REMOVE(&ls->read_msgs, m, node);
+		ls->owner_cb.cb_logmsg_read(ls, ls->owner_cb.cbdata, m);
+		/* owner owns logmsg now */
+	}
+}
+
 /*
  * Read some data from the sender side.  Yes, this should really
  * just use bufferevents.
@@ -129,7 +146,6 @@ static void
 logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 {
 	struct logd_source *ls = arg;
-	struct logd_msg *m;
 	int r;
 
 	if (logd_buf_get_freespace(&ls->rbuf) == 0) {
@@ -205,18 +221,7 @@ logd_source_read_evcb(evutil_socket_t fd, short what, void *arg)
 
 		/* r > 0; we consumed some data */
 	}
-
-	/*
-	 * XXX TODO: defer this?
-	 *
-	 * Whilst we have logd_msg entries, pass them up.
-	 */
-	while ((m = TAILQ_FIRST(&ls->read_msgs)) != NULL) {
-		TAILQ_REMOVE(&ls->read_msgs, m, node);
-		ls->owner_cb.cb_logmsg_read(ls, ls->owner_cb.cbdata, m);
-		/* owner owns logmsg now */
-	}
-
+	logd_source_send_up_readmsgs(ls);
 }
 
 struct logd_source *
