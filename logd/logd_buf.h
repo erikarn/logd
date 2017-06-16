@@ -25,6 +25,13 @@ static inline const char *logd_buf_get_buf(struct logd_buf *b)
 	return (b->buf);
 }
 
+static inline char *logd_buf_get_bufp(struct logd_buf *b)
+{
+
+	return (b->buf);
+}
+
+
 static inline int logd_buf_get_size(struct logd_buf *b)
 {
 
@@ -43,9 +50,10 @@ static inline int logd_buf_get_freespace(struct logd_buf *b)
 	return (b->size - b->len);
 }
 
-
 extern	int logd_buf_init(struct logd_buf *b, int size);
 extern	void logd_buf_done(struct logd_buf *b);
+extern	struct logd_buf *logd_buf_alloc(int size);
+extern	void logd_buf_free(struct logd_buf *b);
 
 extern	int logd_buf_consume(struct logd_buf *b, char *buf, int size);
 extern	int logd_buf_append(struct logd_buf *b, const char *buf, int len,

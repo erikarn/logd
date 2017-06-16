@@ -42,7 +42,31 @@ logd_buf_done(struct logd_buf *b)
 	b->buf = NULL;
 	b->size = 0;
 	b->len = 0;
+}
 
+struct logd_buf *
+logd_buf_alloc(int size)
+{
+	struct logd_buf *m;
+
+	m = calloc(1, sizeof(*m));
+	if (m == NULL) {
+		warn("%s: calloc", __func__);
+		return (NULL);
+	}
+	if (logd_buf_init(m, size) < 0) {
+		free(m);
+		return (NULL);
+	}
+	return (m);
+}
+
+void
+logd_buf_free(struct logd_buf *b)
+{
+
+	logd_buf_done(b);
+	free(b);
 }
 
 int

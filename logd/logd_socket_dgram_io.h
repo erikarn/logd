@@ -3,9 +3,17 @@
 
 struct logd_socket_dgram_io;
 
-typedef int logd_socket_dgram_io_error_cb(struct logd_socket_dgram_io *, void *, int);
-typedef int logd_socket_dgram_io_read_cb(struct logd_socket_dgram_io *, void *);
-typedef int logd_socket_dgram_io_write_cb(struct logd_socket_dgram_io *, void *);
+/* XXX TODO: turn into enum */
+#define	LOGD_SOCK_DGRAM_IO_ERR_SOCKET_READ		1
+#define	LOGD_SOCK_DGRAM_IO_ERR_SOCKET_WRITE		2
+#define	LOGD_SOCK_DGRAM_IO_ERR_SOCKET_READ_ALLOC	3
+
+typedef int logd_socket_dgram_io_error_cb(struct logd_socket_dgram_io *,
+	    void *, int, int);
+typedef int logd_socket_dgram_io_read_cb(struct logd_socket_dgram_io *,
+	    void *, struct logd_buf *);
+typedef int logd_socket_dgram_io_write_cb(struct logd_socket_dgram_io *,
+	    void *);
 
 /*
  * This implements a datagram buffer event IO mechanism for
@@ -22,6 +30,7 @@ typedef int logd_socket_dgram_io_write_cb(struct logd_socket_dgram_io *, void *)
 struct logd_socket_dgram_io {
 	int fd;
 	int is_closing;
+	int is_running;
 
 	/*
 	 * List of messages that we've read that the owner should
@@ -45,6 +54,8 @@ struct logd_socket_dgram_io {
 	int max_write_msgs;
 	int num_write_msgs;
 	int num_write_msgs_overflow;
+
+	int read_buf_size;
 
 	/* Callbacks - us to owner */
 	struct {
