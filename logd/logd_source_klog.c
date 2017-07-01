@@ -425,7 +425,7 @@ logd_source_klog_close_cb(struct logd_source *ls, void *arg)
 }
 
 static int
-logd_source_klog_write_cb(struct logd_source *l, void *arg)
+logd_source_klog_write_cb(struct logd_source *l, void *arg, struct logd_msg *m)
 {
 
 	fprintf(stderr, "%s: called\n", __func__);

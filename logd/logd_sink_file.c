@@ -61,12 +61,33 @@ logd_sink_file_error_cb(struct logd_source *ls, void *arg, int error)
 }
 
 static int
+logd_sink_file_close(struct logd_sink_file *kl)
+{
+
+	fprintf(stderr, "%s: called\n", __func__);
+
+	/* Note: for now, main class has called close() already */
+	if (kl->fd != -1) {
+		close(kl->fd);
+		/* XXX TODO method */
+		kl->fd = -1;
+	}
+
+	if (kl->do_unlink) {
+		unlink(kl->path);
+	}
+	return (0);
+}
+
+static int
 logd_sink_file_free_cb(struct logd_source *ls, void *arg)
 {
 	struct logd_sink_file *kl = arg;
 
 	fprintf(stderr, "%s: called\n", __func__);
+
 	/* Do teardown */
+	logd_sink_file_close(kl);
 
 	free(kl->path);
 	return (0);
@@ -96,7 +117,7 @@ logd_sink_file_open_cb(struct logd_source *ls, void *arg)
 	}
 
 	/* XXX should be a method */
-	ls->fd = fd;
+	kl->fd = fd;
 
 	return (0);
 }
@@ -106,29 +127,46 @@ logd_sink_file_close_cb(struct logd_source *ls, void *arg)
 {
 	struct logd_sink_file *kl = arg;
 
-	fprintf(stderr, "%s: called\n", __func__);
-
-	/* Note: for now, main class has called close() already */
-	if (kl->fd != -1) {
-		close(kl->fd);
-		/* XXX TODO method */
-		kl->fd = -1;
-	}
-
-	if (kl->do_unlink) {
-		unlink(kl->path);
-	}
-	return (0);
+	return (logd_sink_file_close(kl));
 }
 
 static int
-logd_sink_file_write_cb(struct logd_source *ls, void *arg)
+logd_sink_file_write_cb(struct logd_source *ls, void *arg,
+    struct logd_msg *m)
 {
+	struct logd_sink_file *kl = arg;
+	ssize_t r, written = 0;
+	const char *b;
 
-	fprintf(stderr, "%s: called\n", __func__);
+	if (kl->fd == -1) {
+		fprintf(stderr, "%s: called; with closed FD\n", __func__);
+		return (-1);
+	}
 
-	/* For now we just write the data to the logfile */
-	return (-1);
+	b = logd_buf_get_bufp(&m->buf);
+
+	while (written < logd_buf_get_len(&m->buf)) {
+		/* For now we just write the data to the logfile, minus timestamps, etc just for testing */
+		r = write(kl->fd, b + written,
+		    logd_buf_get_len(&m->buf) - written);
+		if (r < 0) {
+			warn("%s: write", __func__);
+			fprintf(stderr, "%s: got EOF; TODO notify!\n", __func__);
+			break;
+		}
+		if (r == 0) {
+			/* EOF for some reason! */
+			fprintf(stderr, "%s: got EOF; TODO notify!\n", __func__);
+			break;
+		}
+		written += r;
+	}
+
+	/* XXX TODO: error check, etc, etc */
+	write(kl->fd, "\n", 1);
+	logd_msg_free(m);
+
+	return (0);
 }
 
 static int
@@ -142,9 +180,13 @@ logd_sink_file_reopen_cb(struct logd_source *ls, void *arg)
 static int
 logd_sink_file_sync_cb(struct logd_source *ls, void *arg)
 {
+	struct logd_sink_file *kl = arg;
 
 	fprintf(stderr, "%s: called\n", __func__);
-	return (-1);
+	if (kl->fd == -1)
+		return (0);
+	fsync(kl->fd);
+	return (0);
 }
 
 static int

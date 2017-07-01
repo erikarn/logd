@@ -14,7 +14,8 @@ typedef int logd_source_open_cb(struct logd_source *, void *);
 typedef int logd_source_close_cb(struct logd_source *, void *);
 typedef int logd_source_sync_cb(struct logd_source *, void *);
 typedef int logd_source_reopen_cb(struct logd_source *, void *);
-typedef int logd_source_write_cb(struct logd_source *, void *);
+typedef int logd_source_write_cb(struct logd_source *, void *,
+	    struct logd_msg *);
 typedef int logd_source_flush_cb(struct logd_source *, void *);
 
 #define	LOGD_SOURCE_ERROR_READ_EOF		1

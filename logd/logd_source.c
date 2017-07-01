@@ -403,7 +403,7 @@ logd_source_write(struct logd_source *ls, struct logd_msg *m)
 	if (ls->child_cb.cb_write == NULL)
 		return (-1);
 
-	return (ls->child_cb.cb_write(ls, ls->child_cb.cbdata));
+	return (ls->child_cb.cb_write(ls, ls->child_cb.cbdata, m));
 }
 
 int
