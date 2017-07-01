@@ -47,12 +47,14 @@ static int
 logd_source_flush_write_msgs(struct logd_source *ls)
 {
 	int ret = 0;
+#if 0
 	struct logd_msg *m;
 
 	while ((m = TAILQ_FIRST(&ls->write_msgs)) != NULL) {
 		TAILQ_REMOVE(&ls->write_msgs, m, node);
 		logd_msg_free(m);
 	}
+#endif
 
 	return (ret);
 }
@@ -251,7 +253,9 @@ logd_source_create(struct event_base *eb)
 	ls->eb = eb;
 
 	TAILQ_INIT(&ls->read_msgs);
+#if 0
 	TAILQ_INIT(&ls->write_msgs);
+#endif
 
 	return (ls);
 }

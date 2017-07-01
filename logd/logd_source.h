@@ -35,7 +35,7 @@ struct logd_source {
 	TAILQ_HEAD(, logd_msg) read_msgs;
 #endif
 
-#if 1
+#if 0
 	/*
 	 * List of messages that we've been asked to send.
 	 */
