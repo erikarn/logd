@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include "logd_util.h"
 #include "logd_buf.h"
 #include "logd_msg.h"
 #include "logd_source.h"
@@ -25,9 +26,11 @@
 
 #define	KLOG_FD_TYPE_NONE	0
 #define	KLOG_FD_TYPE_FIFO	1
+#if 0
 #define	KLOG_FD_TYPE_UDP_SOCKET	2
 #define	KLOG_FD_TYPE_TCP_SOCKET	3
 #define	KLOG_FD_TYPE_FILE	4
+#endif
 #define	KLOG_FD_TYPE_KLOG	5
 
 /*
@@ -40,11 +43,19 @@
  */
 
 struct logd_source_klog {
+	struct logd_source *ls;
 	int fd;
 	char *path;
 	int is_readonly;
 	int fd_type;
 	int do_unlink;
+
+	/* read/write readiness events */
+	struct event *ev_read;
+	struct event *ev_write;
+
+	/* buffer for incoming unstructured data */
+	struct logd_buf rbuf;
 };
 
 /*
@@ -193,6 +204,23 @@ logd_source_klog_parse_timestamp_procname(struct logd_msg *m)
 #undef	MAXDATELEN
 }
 
+static int
+logd_source_klog_read_cb(struct logd_source *ls, void *arg)
+{
+
+	fprintf(stderr, "%s: called; deprecated; get rid of it?\n", __func__);
+	return (-1);
+}
+
+static int
+logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
+{
+
+	fprintf(stderr, "%s: called; deprecated; get rid of it?\n", __func__);
+	return (-1);
+}
+
+
 /*
  * Loop over and attempt to consume a message.
  * Note that in syslog format things are terminated by a \n, and we
@@ -203,20 +231,19 @@ logd_source_klog_parse_timestamp_procname(struct logd_msg *m)
  * potentially flush the buffer.
  */
 static int
-logd_source_klog_read_cb(struct logd_source *ls, void *arg)
+logd_source_klog_read_dev(struct logd_source_klog *kl)
 {
-	struct logd_msg *m;
 	const char *p, *q;
 	int l, ret = 0;
+	struct logd_msg *m;
+	struct logd_source *ls = kl->ls;
 
-	//fprintf(stderr, "%s: called\n", __func__);
-
-	while (logd_buf_get_len(&ls->rbuf) != 0) {
+	while (logd_buf_get_len(&kl->rbuf) != 0) {
 		/* start of line */
-		p = logd_buf_get_buf(&ls->rbuf);
+		p = logd_buf_get_buf(&kl->rbuf);
 
 		/* look for a \n */
-		q = memchr(p, '\n', logd_buf_get_len(&ls->rbuf));
+		q = memchr(p, '\n', logd_buf_get_len(&kl->rbuf));
 		if (q == NULL) {
 			/* We don't have a complete line, so bail */
 			fprintf(stderr, "%s: still waiting for EOL\n", __func__);
@@ -240,7 +267,7 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 		logd_trim_trailing_newline(&m->buf);
 
 		/* Consume the buffer - XXX TODO: l or l+1? */
-		logd_buf_consume(&ls->rbuf, NULL, l);
+		logd_buf_consume(&kl->rbuf, NULL, l);
 
 		/* Parse the facility out */
 		logd_source_klog_parse_facility(m);
@@ -271,21 +298,21 @@ logd_source_klog_read_cb(struct logd_source *ls, void *arg)
  * potentially flush the buffer.
  */
 static int
-logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
+logd_source_klog_read_dgram(struct logd_source_klog *kl)
 {
+	struct logd_source *ls = kl->ls;
 	struct logd_msg *m;
 	const char *p;
 	int l;
 
 	//fprintf(stderr, "%s: called\n", __func__);
 
-	if (logd_buf_get_len(&ls->rbuf) == 0) {
+	if (logd_buf_get_len(&kl->rbuf) == 0) {
 		return (0);
-
 	}
 
-	p = logd_buf_get_buf(&ls->rbuf);
-	l = logd_buf_get_len(&ls->rbuf);
+	p = logd_buf_get_buf(&kl->rbuf);
+	l = logd_buf_get_len(&kl->rbuf);
 
 	/* Now, we have a string of len 'l', so populate */
 	m = logd_msg_create(l);
@@ -297,7 +324,7 @@ logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
 	logd_trim_trailing_newline(&m->buf);
 
 	/* Consume the buffer - XXX TODO: l or l+1? */
-	logd_buf_consume(&ls->rbuf, NULL, l);
+	logd_buf_consume(&kl->rbuf, NULL, l);
 
 	/* Parse the facility out */
 	logd_source_klog_parse_facility(m);
@@ -317,6 +344,121 @@ logd_source_klog_read_dgram_cb(struct logd_source *ls, void *arg)
 
 	return (1);
 }
+
+/*
+ * Read IO from libevent.
+ */
+static void
+logd_source_klog_read_evcb(evutil_socket_t fd, short what, void *arg)
+{
+	struct logd_source_klog *kl = arg;
+	struct logd_source *ls = kl->ls;
+	int r;
+
+	fprintf(stderr, "%s: (%s) called\n", __func__, kl->path);
+
+	/*
+	 * Step 1 - read over the socket, fill buffer with some data.
+	 * Don't worry about reading until we're full for now; just
+	 * bite the IO inefficiency until this is fixed and then fix
+	 * this loop up to be more sane.
+	 */
+
+	/*
+	 * This means we ran out of space.  Inform our owner that we
+	 * are full and stop reading until we're told what to do.
+	 */
+	if (logd_buf_get_freespace(&kl->rbuf) == 0) {
+		fprintf(stderr, "%s: FD %d; incoming buf full; need to handle\n",
+		    __func__, kl->fd);
+		/* notify owner */
+		logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_FULL, 0);
+		return;
+	}
+
+       /* XXX hard-coded maxread size */
+       r = logd_buf_read_append(&kl->rbuf, kl->fd, 1024);
+
+       /* buf full */
+       if (r == -2) {
+               fprintf(stderr, "%s: FD %d; incoming buf full; need to handle\n",
+                   __func__, kl->fd);
+               /* notify owner */
+               logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_FULL, 0);
+               return;
+       }
+
+       /* Don't fail temporary errors */
+       if (r == -1 && errno_sockio_fatal(errno)) {
+               fprintf(stderr, "%s: FD %d; failed; r=%d, errno=%d\n",
+                   __func__,
+                   fd,
+                   r,
+                   errno);
+               /* notify child; they can notify owner */
+               logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_ERROR, errno);
+               return;
+       }
+
+	/* Not fatal socket errors - eg, EWOULDBLOCK */
+	if (r == -1) {
+		return;
+	}
+
+	/*
+	 * EOF: we need to stop reading from this and notify the owner
+	 * that we're closing.
+	 */
+	if (r == 0) {
+		/*
+		 * notify owner; they can re-open things as appropriate.
+		 */
+		event_del(kl->ev_read);
+		logd_source_read_error(ls, LOGD_SOURCE_ERROR_READ_EOF, 0);
+		return;
+	}
+
+
+	 /*
+	  * step 2 - consume the data appropriately for the kind of
+	  * socket we are.
+	  */
+	/*
+	 * Loop over until we run out of data or error.
+	 */
+	while (logd_buf_get_len(&kl->rbuf) > 0) {
+		/* Yes, reuse r */
+		switch (kl->fd_type) {
+		case KLOG_FD_TYPE_FIFO:
+			r = logd_source_klog_read_dgram(kl);
+			break;
+		case KLOG_FD_TYPE_KLOG:
+			r = logd_source_klog_read_dev(kl);
+			break;
+		default:
+			fprintf(stderr, "%s: got here, wrong FD type\n", __func__);
+			break;
+		}
+
+               /* Error */
+               if (r < 0) {
+                       /* notify owner - they can decide what to do */
+                       ls->owner_cb.cb_error(ls, ls->owner_cb.cbdata,
+                           LOGD_SOURCE_ERROR_READ_ERROR);
+                       break;
+               }
+
+               /* Didn't consume anything from this yet */
+               if (r == 0) {
+                       break;
+               }
+
+               /* r > 0; we consumed some data */
+       }
+       logd_source_send_up_readmsgs(ls);
+}
+
+
 
 static int
 logd_source_klog_error_cb(struct logd_source *ls, void *arg, int error)
@@ -401,8 +543,11 @@ logd_source_klog_open_cb(struct logd_source *ls, void *arg)
 		return (-1);
 	}
 
-	/* XXX TODO should be a method */
-	ls->fd = fd;
+	kl->fd = fd;
+
+	kl->ev_read = event_new(ls->eb, kl->fd, EV_READ | EV_PERSIST,
+	    logd_source_klog_read_evcb, kl);
+	event_add(kl->ev_read, NULL);
 
 	return (0);
 }
@@ -418,8 +563,11 @@ logd_source_klog_close_cb(struct logd_source *ls, void *arg)
 
 	if (kl->fd != -1) {
 		close(kl->fd);
-		/* XXX TODO should be a method */
 		kl->fd = -1;
+		event_del(kl->ev_read);
+		event_del(kl->ev_write);
+		event_free(kl->ev_read);
+		event_free(kl->ev_write);
 	}
 
 	if (kl->do_unlink) {
@@ -478,6 +626,12 @@ logd_source_klog_create_read_dev(struct event_base *eb,
 		return (NULL);
 	}
 
+	if (logd_buf_init(&kl->rbuf, 1024) < 0) {
+		free(kl);
+		return (NULL);
+	}
+	kl->rbuf.size = 1024;
+
 	ls = logd_source_create(eb);
 	if (ls == NULL) {
 		free(kl);
@@ -497,9 +651,11 @@ logd_source_klog_create_read_dev(struct event_base *eb,
 	    logd_source_klog_flush_cb,
 	    kl);
 
+	kl->fd = -1;
 	kl->path = strdup(path);
 	kl->is_readonly = 1;
 	kl->fd_type = KLOG_FD_TYPE_KLOG;
+	kl->ls = ls;
 
 	return (ls);
 }
@@ -516,6 +672,12 @@ logd_source_klog_create_unix_fifo(struct event_base *eb,
 		warn("%s: calloc", __func__);
 		return (NULL);
 	}
+
+	if (logd_buf_init(&kl->rbuf, 1024) < 0) {
+		free(kl);
+		return (NULL);
+	}
+	kl->rbuf.size = 1024;
 
 	ls = logd_source_create(eb);
 	if (ls == NULL) {
@@ -536,9 +698,11 @@ logd_source_klog_create_unix_fifo(struct event_base *eb,
 	    logd_source_klog_flush_cb,
 	    kl);
 
+	kl->fd = -1;
 	kl->path = strdup(path);
 	kl->do_unlink = 1;
 	kl->fd_type = KLOG_FD_TYPE_FIFO;
+	kl->ls = ls;
 
 	return (ls);
 }

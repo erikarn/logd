@@ -24,7 +24,6 @@ typedef int logd_source_flush_cb(struct logd_source *, void *);
 
 struct logd_source {
 	TAILQ_ENTRY(logd_source) node;
-	int fd;
 	int is_closing;
 
 #if 1
@@ -64,14 +63,6 @@ struct logd_source {
 	} owner_cb;
 
 	struct event_base *eb;
-	struct event *read_ev;
-	struct event *write_ev;
-
-	/*
-	 * Incoming unstructured data (eg from a file, socket)
-	 * that needs translating into log messages to log.
-	 */
-	struct logd_buf rbuf;
 };
 
 /*
@@ -152,6 +143,17 @@ extern	int logd_source_write(struct logd_source *ls, struct logd_msg *m);
  * Re-open the end-point.
  */
 extern	int logd_source_reopen(struct logd_source *ls);
+
+/*
+ * Called by the child to inform the owner that there's been an error.
+ */
+extern	void logd_source_read_error(struct logd_source *ls, int errcode,
+	    int xerror);
+
+/*
+ * Called by the child to send up a batch of messages to the owner.
+ */
+extern	void logd_source_send_up_readmsgs(struct logd_source *ls);
 
 /*
  * Global setup/teardown.

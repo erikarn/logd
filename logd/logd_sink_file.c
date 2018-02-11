@@ -28,7 +28,10 @@
 
 /*
  * Implement a simple text log file sink.
- * This logs the given message to the given file.
+ *
+ * This logs the given message to the given file in a format similar to
+ * existing syslogd logging formats.
+ *
  * It doesn't do any filtering; this is someone elses'
  * concern.
  */
