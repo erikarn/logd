@@ -205,11 +205,12 @@ logd_source_klog_parse_timestamp_procname(struct logd_msg *m)
 static int
 logd_source_klog_read_cb(struct logd_source *ls, void *arg)
 {
+	struct logd_source_klog *kl = arg;
 	struct logd_msg *m;
 	const char *p, *q;
 	int l, ret = 0;
 
-	//fprintf(stderr, "%s: called\n", __func__);
+	fprintf(stderr, "%s: (%s) called\n", __func__, kl->path);
 
 	while (logd_buf_get_len(&ls->rbuf) != 0) {
 		/* start of line */
