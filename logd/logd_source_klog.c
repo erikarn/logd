@@ -33,6 +33,10 @@
 /*
  * Implement a simple klog source.  This consumes messages
  * and add timestamping, logging level, etc.
+ *
+ * It implements a variety of filedescriptor types, which have
+ * slightly different method formats.  This needs to be tidied
+ * up and maybe turned into different modules.
  */
 
 struct logd_source_klog {
@@ -428,31 +432,36 @@ static int
 logd_source_klog_write_cb(struct logd_source *l, void *arg, struct logd_msg *m)
 {
 
-	fprintf(stderr, "%s: called\n", __func__);
+	struct logd_source_klog *kl = arg;
+
+	fprintf(stderr, "%s (%s): called\n", __func__, kl->path);
 	return (-1);
 }
 
 static int
 logd_source_klog_reopen_cb(struct logd_source *l, void *arg)
 {
+	struct logd_source_klog *kl = arg;
 
-	fprintf(stderr, "%s: called\n", __func__);
+	fprintf(stderr, "%s: (%s) called\n", __func__, kl->path);
 	return (-1);
 }
 
 static int
 logd_source_klog_sync_cb(struct logd_source *l, void *arg)
 {
+	struct logd_source_klog *kl = arg;
 
-	fprintf(stderr, "%s: called\n", __func__);
+	fprintf(stderr, "%s (%s): called\n", __func__, kl->path);
 	return (-1);
 }
 
 static int
 logd_source_klog_flush_cb(struct logd_source *l, void *arg)
 {
+	struct logd_source_klog *kl = arg;
 
-	fprintf(stderr, "%s: called\n", __func__);
+	fprintf(stderr, "%s: (%s) called\n", __func__, kl->path);
 	return (-1);
 }
 
