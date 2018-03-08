@@ -28,7 +28,7 @@
  * called to determine whether to send them.
  */
 struct logd_collection *
-logd_collection_create(void)
+logd_collection_create(struct event_base *eb)
 {
 	struct logd_collection *lc;
 
@@ -38,6 +38,7 @@ logd_collection_create(void)
 		return (NULL);
 	}
 	TAILQ_INIT(&lc->entries);
+	lc->eb = eb;
 
 	return (lc);
 }
@@ -75,7 +76,14 @@ logd_collection_source_read_cb(struct logd_source *ls, void *arg,
 		if (ln->src == ls)
 			continue;
 
-		/* XXX TODO: call filter method */
+		/* If there's no filter set, then default deny */
+		if (lc->filter == NULL)
+			continue;
+
+		/* Do a fast check */
+		if (logd_filter_check_fast(lc->filter,
+		    ls, ln->src, m) != 1)
+			continue;
 
 		/* Ok, relaying - call xmit method */
 		mn = logd_msg_dup(m);
@@ -127,4 +135,17 @@ logd_collection_add(struct logd_collection *lc, struct logd_source *ls)
 	TAILQ_INSERT_TAIL(&lc->entries, le, node);
 
 	return (le);
+}
+
+void
+logd_collection_free(struct logd_collection *lc)
+{
+
+	printf("%s: XXX TODO!\n", __func__);
+
+	/* go through the entries and free them */
+
+	/* free the filter if it exists */
+
+	/* done */
 }

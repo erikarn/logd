@@ -17,8 +17,12 @@ struct logd_collection_entry {
 };
 
 struct logd_collection {
+	struct event_base *eb;
+
 	/* collection entries */
 	TAILQ_HEAD(, logd_collection_entry) entries;
+
+	struct logd_filter *filter;
 
 	struct {
 		void *cbdata;
@@ -26,7 +30,9 @@ struct logd_collection {
 	} owner_cb;
 };
 
-extern	struct logd_collection * logd_collection_create(void);
+extern	struct logd_collection * logd_collection_create(struct event_base *eb);
+extern	int logd_collection_assign_filter(struct logd_collection *,
+	    struct logd_filter *);
 extern	void logd_collection_free(struct logd_collection *);
 
 extern	struct logd_collection_entry * logd_collection_add(struct logd_collection *,

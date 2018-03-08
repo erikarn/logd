@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Need to actually do some work here .. */
-	lc = logd_collection_create();
+	lc = logd_collection_create(la.eb);
 
 	/* /dev/klog; only read from it */
 	ls = logd_source_klog_create_read_dev(la.eb, "/dev/klog");
