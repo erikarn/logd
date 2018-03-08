@@ -24,7 +24,7 @@
  * Always return false (don't match.)
  */
 static int
-logd_filter_null_check(struct logd_filter *lf, void *arg,
+logd_filter_null_check_fast(struct logd_filter *lf, void *arg,
     struct logd_source *src, struct logd_source *dst,
     struct logd_msg *m)
 {
@@ -54,7 +54,7 @@ logd_filter_create(struct event_base *eb)
 		return (NULL);
 	}
 	lf->eb = eb;
-	lf->child_cb.filter_check_cb = logd_filter_null_check;
+	lf->child_cb.filter_check_fast_cb = logd_filter_null_check_fast;
 	lf->child_cb.filter_free_cb = logd_filter_null_free;
 	lf->child_cb.cbdata = NULL;
 
@@ -72,10 +72,10 @@ logd_filter_free(struct logd_filter *lf)
 }
 
 int
-logd_filter_check(struct logd_filter *lf, struct logd_source *src,
+logd_filter_check_fast(struct logd_filter *lf, struct logd_source *src,
     struct logd_source *dst, struct logd_msg *m)
 {
 
-	return (lf->child_cb.filter_check_cb(lf, lf->child_cb.cbdata,
+	return (lf->child_cb.filter_check_fast_cb(lf, lf->child_cb.cbdata,
 	    src, dst, m));
 }
