@@ -146,6 +146,23 @@ logd_collection_free(struct logd_collection *lc)
 	/* go through the entries and free them */
 
 	/* free the filter if it exists */
+	logd_filter_free(lc->filter);
 
 	/* done */
+}
+
+int
+logd_collection_assign_filter(struct logd_collection *lc,
+    struct logd_filter *lf)
+{
+
+	/* If there's a previous filter then free it first */
+	if (lc->filter != NULL) {
+		logd_filter_free(lc->filter);
+		lc->filter = NULL;
+	}
+
+	lc->filter = lf;
+
+	return (0);
 }

@@ -9,6 +9,7 @@ SRCS+=	logd_buf.c
 SRCS+=	logd_collection.c
 SRCS+=	logd_socket_dgram_io.c
 SRCS+=	logd_filter.c
+SRCS+=	logd_filter_true.c
 
 # XXX this is so we can compile using the internal libevent for now
 # .. and it's totally wrong, and also using CFLAGS like this is also wrong.

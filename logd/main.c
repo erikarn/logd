@@ -27,6 +27,8 @@
 #include "logd_source_klog.h"
 #include "logd_sink_file.h"
 #include "logd_collection.h"
+#include "logd_filter.h"
+#include "logd_filter_true.h"
 
 static void
 usage(void)
@@ -43,6 +45,7 @@ int
 main(int argc, char *argv[])
 {
 	struct logd_app la;
+	struct logd_filter *lf;
 	pid_t ppid;
 	int opt;
 
@@ -98,6 +101,10 @@ main(int argc, char *argv[])
 
 	/* Need to actually do some work here .. */
 	lc = logd_collection_create(la.eb);
+
+	/* Add a default true filter */
+	lf = logd_filter_true_create(la.eb);
+	logd_collection_assign_filter(lc, lf);
 
 	/* /dev/klog; only read from it */
 	ls = logd_source_klog_create_read_dev(la.eb, "/dev/klog");
